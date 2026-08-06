@@ -116,9 +116,9 @@ embedder = Embedder()
 def search(query, patient_id=None, doc_types=None, is_oncology=None, num_results=5):
     """Lexical search over the minsearch index."""
     boost_dict = {
-        "title": 1.2,
-        "heading": 2.0,
-        "chunk_text": 1.0,
+        "title": 1.0,       # low; titles are often generic
+        "heading": 2.0,     # strong; headings carry section semantics
+        "chunk_text": 1.5,  # main content
     }
 
     filter_dict = {}
