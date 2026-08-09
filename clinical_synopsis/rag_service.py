@@ -412,10 +412,10 @@ ONCOLOGY TIMELINE CONTEXT:
         prompt_mode=prompt_mode,
     )
 
-    llm_out = retrieval.llm(prompt=prompt, model=model)
+    llm_out = llm(prompt=prompt, model=model)
     answer = llm_out["answer"]
     token_stats = llm_out["token_stats"]
-    cost_info = retrieval.calculate_openai_cost(model, token_stats)
+    cost_info = calculate_openai_cost(model, token_stats)
 
     patient_name, patient_dob, patient_age, patient_gender = _extract_patient_identity(overview_results)
 
