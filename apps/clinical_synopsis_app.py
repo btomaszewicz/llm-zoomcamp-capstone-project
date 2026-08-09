@@ -1,9 +1,11 @@
 import os
+from pathlib import Path
 
 import streamlit as st
 
 from clinical_synopsis.question_router import route_question
 from clinical_synopsis.rag_service import rag_new
+from clinical_synopsis.feedback import save_feedback
 
 
 QUESTION_TYPE_LABELS = {
@@ -14,6 +16,69 @@ QUESTION_TYPE_LABELS = {
 }
 
 QUESTION_TYPE_OPTIONS = list(QUESTION_TYPE_LABELS)
+
+APP_DIR = Path(__file__).resolve().parent
+REPO_ROOT = APP_DIR.parent
+
+DEFAULT_DERIVED_ROOT = REPO_ROOT / "data" / "derived" / "sample50"
+
+DERIVED_ROOT = Path(
+    os.getenv(
+        "CLINICAL_SYNOPSIS_DERIVED_ROOT",
+        str(DEFAULT_DERIVED_ROOT),
+    )
+)
+
+
+def render_source_documents(patient_id: str) -> None:
+    patient_dir = DERIVED_ROOT / patient_id
+
+    source_files = [
+        ("Patient overview", "patient_overview.md", "text/markdown"),
+        ("Conditions", "conditions.csv", "text/csv"),
+        ("Medications", "medications.csv", "text/csv"),
+        ("Oncology timeline", "oncology_timeline.md", "text/markdown"),
+        ("Oncology timeline events", "oncology_timeline_events.csv", "text/csv"),
+        ("Procedures", "procedures.csv", "text/csv"),
+        ("Diagnostic reports", "diagnostic_reports.csv", "text/csv"),
+        ("Encounters", "encounters.csv", "text/csv"),
+    ]
+
+    available_sources = [
+        (label, patient_dir / filename, mime_type)
+        for label, filename, mime_type in source_files
+        if (patient_dir / filename).exists()
+    ]
+
+    if not available_sources:
+        st.info("No source documents are available for this patient.")
+        return
+
+    columns = st.columns(2)
+
+    for index, (label, file_path, mime_type) in enumerate(available_sources):
+        with columns[index % 2]:
+            st.download_button(
+                label=f"Download {label}",
+                data=file_path.read_bytes(),
+                file_name=file_path.name,
+                mime=mime_type,
+                use_container_width=True,
+                key=f"{patient_id}_{file_path.name}",
+            )
+
+    overview_path = patient_dir / "patient_overview.md"
+
+    # if overview_path.exists():
+    #     with st.expander("View patient overview"):
+    #         st.markdown(overview_path.read_text(encoding="utf-8"))
+    if overview_path.exists():
+        with st.expander("View patient overview"):
+            try:
+                st.markdown(overview_path.read_text(encoding="utf-8"))
+            except OSError:
+                st.warning("The patient overview could not be read.")
+
 
 
 st.set_page_config(
@@ -109,6 +174,78 @@ if ask:
     st.caption(" · ".join(demographics))
 
     st.markdown(result["answer"])
+
+    st.divider()
+    st.subheader("Source documents")
+    st.caption(
+        "Download the underlying patient summary and structured records "
+        "to review the evidence behind this answer."
+    )
+
+    render_source_documents(patient_id)
+
+    # user feedback
+    st.divider()
+    st.subheader("Answer feedback")
+
+    feedback_score = st.radio(
+        "Was this answer useful and accurate?",
+        options=[5, 4, 3, 2, 1],
+        horizontal=True,
+        format_func=lambda score: {
+            5: "5 — Excellent",
+            4: "4 — Good",
+            3: "3 — Usable with changes",
+            2: "2 — Poor",
+            1: "1 — Unusable",
+        }[score],
+    )
+
+    accuracy_issue = st.checkbox(
+        "Potential clinical accuracy issue",
+        help="Select this if the answer appears inaccurate, unsupported, or potentially misleading.",
+    )
+
+    issue_type = st.selectbox(
+        "Issue type",
+        options=[
+            "No issue",
+            "Incorrect fact",
+            "Missing important information",
+            "Too much or irrelevant information",
+            "Wrong question type",
+            "Unclear format or wording",
+            "Other",
+        ],
+    )
+
+    feedback_comment = st.text_area(
+        "Optional comment",
+        placeholder="For example: Breast-cancer treatment history was omitted.",
+        height=90,
+    )
+
+    if st.button("Submit feedback"):
+        feedback_event = {
+            "patient_id": patient_id,
+            "question": question.strip(),
+            "question_type": question_type,
+            "search_type": search_type,
+            "model": model,
+            "answer": result["answer"],
+            "routing_suggestion": route.question_type if route else None,
+            "routing_confidence": route.confidence if route else None,
+            "feedback_score": feedback_score,
+            "accuracy_issue": accuracy_issue,
+            "issue_type": issue_type,
+            "comment": feedback_comment.strip(),
+            "input_tokens": result.get("input_tokens"),
+            "output_tokens": result.get("output_tokens"),
+            "total_cost": result.get("total_cost"),
+        }
+
+        save_feedback(feedback_event)
+        st.success("Feedback saved. Thank you.")
 
     with st.expander("Answer details"):
         st.write(f"Question type: {QUESTION_TYPE_LABELS[question_type]}")
