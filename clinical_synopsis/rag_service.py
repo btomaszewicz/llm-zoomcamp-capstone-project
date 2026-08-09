@@ -52,6 +52,17 @@ def _extract_patient_identity(search_results: list[dict[str, Any]]) -> tuple[str
     return patient_name, patient_dob, patient_age, patient_gender
 
 
+def _search_patient_identity(search_type: str, patient_id: str, num_results: int = 10):
+    identity_results = _search(
+        search_type=search_type,
+        query="patient overview",
+        patient_id=patient_id,
+        doc_types=["patient_overview"],
+        num_results=num_results,
+    )
+    return _extract_patient_identity(identity_results)
+
+
 def _search(
     search_type: str,
     query: str,
@@ -107,12 +118,29 @@ def _dedupe_by_chunk_id(docs: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return merged
 
 
+# # this version sends BASE_INSTRUCTIONS which are already sent in the llm() function, so we don't need to include them again in the prompt
+# def build_prompt_with_mode(question: str, context: str, prompt_mode: str) -> str:
+#     extra = PROMPT_MODES.get(prompt_mode, "")
+#     system_instructions = BASE_INSTRUCTIONS + "\n\n" + extra
+
+#     prompt = f"""
+# {system_instructions}
+
+# CONTEXT:
+# {context}
+
+# QUESTION:
+# {question}
+
+# ANSWER:
+# """.strip()
+
+#     return prompt
 def build_prompt_with_mode(question: str, context: str, prompt_mode: str) -> str:
     extra = PROMPT_MODES.get(prompt_mode, "")
-    system_instructions = BASE_INSTRUCTIONS + "\n\n" + extra
 
-    prompt = f"""
-{system_instructions}
+    return f"""
+{extra}
 
 CONTEXT:
 {context}
@@ -122,8 +150,6 @@ QUESTION:
 
 ANSWER:
 """.strip()
-
-    return prompt
 
 
 def build_prompt(query, search_results):
@@ -417,7 +443,7 @@ ONCOLOGY TIMELINE CONTEXT:
     token_stats = llm_out["token_stats"]
     cost_info = calculate_openai_cost(model, token_stats)
 
-    patient_name, patient_dob, patient_age, patient_gender = _extract_patient_identity(overview_results)
+    patient_name, patient_dob, patient_age, patient_gender = _search_patient_identity(search_type, patient_id)
 
     return {
         "patient_id": patient_id,

@@ -65,8 +65,8 @@ For overview questions, use exactly these four sections and do not add others.
 - Sentence 2: State the current or recent clinically important status. Do not mention social, occupational, environmental, or administrative findings.
 - Sentence 3: Give a one-sentence oncology synopsis using ONLY ONCOLOGY TIMELINE CONTEXT. Do not use medications as oncology evidence.
 
-2. **Conditions**
-- Include only documented clinical diagnoses and clinically meaningful comorbidities.
+2. **Active Conditions**
+- Include only documented clinical diagnoses and clinically meaningful comorbidities that are listed as active.
 - Exclude social, occupational, environmental, administrative, and screening findings.
 - Specifically exclude stress, employment status, not in labor force, and reports of violence in the environment.
 - Do not reproduce every row from Recent Conditions.
