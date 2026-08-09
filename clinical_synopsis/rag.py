@@ -18,7 +18,7 @@ INDEX_PATH = REPO_ROOT / "data" / "retrieval" / "minsearch_index.pkl"
 VECTOR_INDEX_PATH = REPO_ROOT / "data" / "retrieval" / "vector_index.npz"
 VECTOR_METADATA_PATH = REPO_ROOT / "data" / "retrieval" / "vector_index_metadata.json"
 
-
+# move instructions to config.py
 INSTRUCTIONS = """
 Your task is to answer questions about a patient's clinical record
 based only on the provided context.
@@ -30,7 +30,7 @@ Do not make up facts that are not supported by the context.
 When possible, mention the document type and date information that support the answer.
 """.strip()
 
-
+# move prompt template to config.py
 PROMPT_TEMPLATE = """
 QUESTION: {question}
 
@@ -50,7 +50,7 @@ is_oncology: {is_oncology}
 chunk_text: {chunk_text}
 """.strip()
 
-
+# move evaluation prompt template to config.py
 EVALUATION_PROMPT_TEMPLATE = """
 You are an expert evaluator for a RAG system.
 

@@ -1,181 +1,24 @@
-from __future__ import annotations # NOT NEEDED RIGHT?
-
+import json
 from datetime import date
 import re
 from typing import Any
 
+from openai import OpenAI
 
 try:
-    from . import rag as rag_module
+    from . import config
+    from . import retrieval
 except ImportError:  # Allows running the file in notebook/script contexts.
-    import rag as rag_module
+    import config
+    import retrieval
 
+client = OpenAI()
 
-BASE_INSTRUCTIONS = rag_module.INSTRUCTIONS
-
-
-QUESTION_TYPES = {
-    "patient_overview": {
-        "prompt_mode": "summary",
-        "doc_types_primary": ["patient_overview"],
-        "doc_types_med_fallback": ["medications"],
-        "doc_types_onco_fallback": ["oncology_timeline"],
-        "headings_primary": ["Recent Conditions", "Recent Results", "Procedures", "Medications"],
-    },
-    "conditions": {
-        "prompt_mode": "extract_conditions",
-        "doc_types_primary": ["patient_overview"],
-        "headings_primary": ["Recent Conditions", "Recent Results"],
-        "doc_types_conditions_supplement": ["conditions"],
-        "primary_num_results": 20,
-        "conditions_num_results": 100,
-    },
-    "medications": {
-        "prompt_mode": "extract_medications",
-        "doc_types": ["patient_overview"],
-        "headings": ["Medications"],
-    },
-    "oncology_timeline": {
-        "description": "Oncology history and major events",
-        "doc_types": ["oncology_timeline", "oncology_timeline_events"],
-        "prompt_mode": "summarize_oncology_timeline",
-    },
-}
-
-
-PATIENT_OVERVIEW_EXTRA = """
-For overview questions, use exactly these four sections and do not add others.
-
-1. **Summary**
-- Write exactly 3 sentences.
-- Sentence 1: State the most important documented clinical conditions, including cancer history when documented in the oncology timeline.
-- Sentence 2: State the current or recent clinically important status. Do not mention social, occupational, environmental, or administrative findings.
-- Sentence 3: Give a one-sentence oncology synopsis using ONLY ONCOLOGY TIMELINE CONTEXT. Do not use medications as oncology evidence.
-
-2. **Conditions**
-- Include only documented clinical diagnoses and clinically meaningful comorbidities.
-- Exclude social, occupational, environmental, administrative, and screening findings.
-- Specifically exclude stress, employment status, not in labor force, and reports of violence in the environment.
-- Do not reproduce every row from Recent Conditions.
-- Preserve active/resolved status exactly.
-- Format: **Condition** — status; date: YYYY-MM-DD.
-- If none qualify, write: "No qualifying clinical conditions documented."
-
-3. **Medications**
-- Give a concise summary of medications explicitly documented as current or active.
-- Do not list dose, route, strength, formulation, or duplicate ingredients.
-- Group medications used for the same apparent purpose when documented together.
-- For multiple active pain medicines, use one bullet named **Active analgesic regimen** and list only the medication names.
-- Do not include completed, historical, inactive, or discontinued medications.
-- If none are explicitly current or active, write exactly:
-  "No current medication is documented in the provided medication snapshot."
-
-4. **Oncology timeline**
-- Use ONLY ONCOLOGY TIMELINE CONTEXT.
-- Do not use patient_overview conditions, results, procedures, or medications as oncology evidence.
-- Summarize diagnosis/staging, treatment episodes, and documented response or progression.
-- Combine repeated treatment sessions and repeated identical response findings into date ranges.
-- Do not infer remission, cure, recurrence, metastasis, or current cancer status.
-- If no oncology timeline context is supplied, write:
-  "No oncology timeline information documented."
-
-Rules:
-- Use only facts in the supplied context.
-- Do not infer missing facts.
-- Do not omit any of the four sections.
-"""
-
-
-CONDITIONS_EXTRA = """
-For questions about diagnosed conditions:
-
-- Use the supplied context only.
-- Preserve each condition or finding's documented status and date.
-- Do not infer diagnoses, status, dates, recurrence, remission, or causality.
-- Separate diagnoses/disorders from findings according to the wording in the context.
-- Entries labelled "(finding)" belong in Findings and social/functional history.
-- Entries labelled "(disorder)" and documented diagnoses belong in Diagnoses and disorders.
-- Within each section, list entries documented as active first, followed by resolved entries.
-- Do not reorder entries further; retain their order from the supplied context within each status group.
-
-Format your answer using exactly these two sections:
-
-**Diagnoses and disorders**
-- List documented diagnoses and disorders.
-- Each bullet: **Name** — status; date: YYYY-MM-DD.
-- If there are no documented diagnoses or disorders in the supplied context, write:
-  "No diagnoses or disorders documented."
-
-**Findings and social/functional history**
-- List documented findings, including social, occupational, environmental, behavioral,
-  and functional findings.
-- Each bullet: **Name** — status; date: YYYY-MM-DD.
-- If there are no documented findings in the supplied context, write:
-  "No findings or social/functional history documented."
-"""
-
-
-MEDICATIONS_EXTRA = """
-For questions about medications:
-
-- Treat this as a medication-history extraction and prioritization task based only on the context.
-- Use the Medications section from patient_overview.md as the primary source.
-- Preserve each medication's documented status exactly. Do NOT describe a medication as current,
-  active, ongoing, or discontinued unless that status is explicitly documented.
-- If all listed medications are historical or marked completed, explicitly state:
-  "No current medication is documented in the provided medication snapshot."
-- Prioritize clinically significant therapies over routine, duplicate, short-term, or remote medications.
-- In an oncology patient, prioritize documented antineoplastic or endocrine cancer therapies.
-- Group all documented historical hormonal contraceptive therapies into exactly one bullet named
-  "**Historical hormonal contraception**." This includes oral contraceptives, transdermal contraceptive
-  patches, and contraceptive implants when they appear in the context.
-- Do NOT create separate bullets for individual historical contraceptive products after grouping them.
-- Exclude one-off symptomatic or short-course medications (for example, cold/flu, cough, pain, or
-  sleep products) when other clinically significant medication history is present.
-- Do NOT list duplicate historical entries for the same medication or medication class. Retain only
-  the most recent documented date within a grouped bullet.
-- List antineoplastic, endocrine cancer therapy, or other disease-modifying therapy as separate
-  medication bullets, even if marked completed.
-- Do NOT infer indication, current use, dose, regimen, treatment response, or clinical importance
-  beyond what is documented.
-- If a date is missing, write "date: not documented"; do not invent one.
-
-Format:
-- Begin with one status sentence:
-  - If no medication is explicitly current/active: "No current medication is documented in the provided medication snapshot."
-  - Otherwise: "Current/recent medications documented in the provided snapshot:"
-- Then use one bullet per medication or clinically coherent medication group.
-- Each bullet: **Medication or group** — documented status; date or date range in YYYY-MM-DD format; brief factual description only when supported by the context.
-- Convert documented timestamps to their calendar date only. Do not include a time, time zone, or infer a date that is not documented.
-"""
-
-
-ONCOLOGY_TIMELINE_EXTRA = """
-For questions about oncology history:
-
-- Treat this as an extraction and summarization task based on the context.
-- Focus on the patient's main *oncology-related* events (e.g., diagnoses, staging, treatments, progression or response),
-  not unrelated conditions or encounters.
-- Use oncology-related sections (e.g., oncology_timeline chunks and relevant parts of patient_overview.md) as the primary source.
-- List events in strict chronological order by their documented date (earliest first).
-- For each event, preserve its type and status exactly as documented (diagnosis, treatment start, progression, response, etc.).
-- Do NOT infer oncology events that are not mentioned.
-- If a date is missing, say "date: not documented" instead of inventing one.
-
-Format:
-- Combine repeated records of the same treatment into one treatment episode with a date range.
-- Combine repeated identical response/progression records into one date-range bullet.
-- Use 3–6 clinically meaningful bullets, in chronological order.
-- Each bullet: **YYYY-MM-DD** or **YYYY-MM-DD to YYYY-MM-DD** — event type; concise factual description.
-"""
-
-
-PROMPT_MODES = {
-    "summary": PATIENT_OVERVIEW_EXTRA,
-    "extract_conditions": CONDITIONS_EXTRA,
-    "extract_medications": MEDICATIONS_EXTRA,
-    "summarize_oncology_timeline": ONCOLOGY_TIMELINE_EXTRA,
-}
+BASE_INSTRUCTIONS = config.BASE_INSTRUCTIONS
+PROMPT_MODES = config.PROMPT_MODES
+QUESTION_TYPES = config.QUESTION_TYPES
+PROMPT_TEMPLATE = config.PROMPT_TEMPLATE
+EVALUATION_PROMPT_TEMPLATE = config.EVALUATION_PROMPT_TEMPLATE
 
 
 def _calculate_age(dob_str: str | None, as_of: date | None = None) -> int | None:
@@ -217,7 +60,7 @@ def _search(
     num_results: int,
 ) -> list[dict[str, Any]]:
     if search_type == "lexical":
-        return rag_module.search(
+        return retrieval.search(
             query=query,
             patient_id=patient_id,
             doc_types=doc_types,
@@ -226,7 +69,7 @@ def _search(
         )
 
     if search_type == "semantic":
-        return rag_module.semantic_search(
+        return retrieval.semantic_search(
             query=query,
             patient_id=patient_id,
             doc_types=doc_types,
@@ -235,7 +78,7 @@ def _search(
         )
 
     if search_type == "hybrid":
-        return rag_module.hybrid_search(
+        return retrieval.hybrid_search(
             query=query,
             patient_id=patient_id,
             doc_types=doc_types,
@@ -281,6 +124,186 @@ ANSWER:
 """.strip()
 
     return prompt
+
+
+def build_prompt(query, search_results):
+    context = retrieval.build_context(search_results)
+    prompt = PROMPT_TEMPLATE.format(question=query, context=context).strip()
+    return prompt
+
+
+def calculate_openai_cost(model, tokens):
+    """
+    Calculate OpenAI API cost in USD for a single call.
+
+    Parameters
+    ----------
+    model : str
+        Model name, e.g. "gpt-5.4-mini".
+    tokens : dict
+        Must contain 'input_tokens' and 'output_tokens' (ints).
+
+    Returns
+    -------
+    dict with keys 'input_cost', 'output_cost', 'total_cost'.
+    """
+
+    pricing = {
+        "gpt-5.4-mini": {
+            "input_price_per_million": 0.75,   # USD per 1M input tokens
+            "output_price_per_million": 4.50,  # USD per 1M output tokens
+        },
+        # Add other models here if needed.
+    }
+
+    info = pricing.get(model)
+    if info is None:
+        return {
+            "input_cost": 0.0,
+            "output_cost": 0.0,
+            "total_cost": 0.0,
+        }
+
+    input_tokens = tokens.get("input_tokens", 0)
+    output_tokens = tokens.get("output_tokens", 0)
+
+    input_cost = (input_tokens / 1_000_000) * info["input_price_per_million"]
+    output_cost = (output_tokens / 1_000_000) * info["output_price_per_million"]
+    total_cost = input_cost + output_cost
+
+    return {
+        "input_cost": input_cost,
+        "output_cost": output_cost,
+        "total_cost": total_cost,
+    }
+
+
+def llm(prompt, model="gpt-5.4-mini"):
+    """Call the LLM to answer a question given a prompt."""
+    response = client.responses.create(
+        model=model,
+        input=[
+            {
+                "role": "developer",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": BASE_INSTRUCTIONS,
+                    }
+                ],
+            },
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": prompt,
+                    }
+                ],
+            },
+        ],
+    )
+
+    answer = response.output_text.strip()
+
+    usage = getattr(response, "usage", None)
+    if usage is None:
+        token_stats = {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "total_tokens": 0,
+        }
+    else:
+        input_tokens = getattr(usage, "input_tokens", 0)
+        output_tokens = getattr(usage, "output_tokens", 0)
+        total_tokens = getattr(usage, "total_tokens", input_tokens + output_tokens)
+
+        token_stats = {
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "total_tokens": total_tokens,
+        }
+
+    cost_info = calculate_openai_cost(model, token_stats)
+
+    return {
+        "answer": answer,
+        "token_stats": token_stats,
+        "cost": cost_info,
+        "raw_response": response,
+    }
+
+
+def evaluate_relevance(question, answer, context, search_type, model="gpt-5.4-mini"):
+    """LLM-as-a-judge for relevance and groundedness."""
+    prompt = EVALUATION_PROMPT_TEMPLATE.format(
+        question=question,
+        answer=answer,
+        context=context,
+        search_type=search_type,
+    )
+
+    response = client.responses.create(
+        model=model,
+        input=[
+            {
+                "role": "developer",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": "Return valid JSON only. Do not include markdown or code fences.",
+                    }
+                ],
+            },
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": prompt,
+                    }
+                ],
+            },
+        ],
+    )
+
+    evaluation_text = response.output_text.strip()
+
+    usage = getattr(response, "usage", None)
+    if usage is None:
+        token_stats = {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "total_tokens": 0,
+        }
+    else:
+        input_tokens = getattr(usage, "input_tokens", 0)
+        output_tokens = getattr(usage, "output_tokens", 0)
+        total_tokens = getattr(usage, "total_tokens", input_tokens + output_tokens)
+
+        token_stats = {
+            "input_tokens": input_tokens,
+            "output_tokens": output_tokens,
+            "total_tokens": total_tokens,
+        }
+
+    cost_info = calculate_openai_cost(model, token_stats)
+
+    try:
+        evaluation = json.loads(evaluation_text)
+    except json.JSONDecodeError:
+        evaluation = {
+            "Relevance": "UNKNOWN",
+            "Groundedness": "UNKNOWN",
+            "Explanation": "Failed to parse evaluation",
+        }
+
+    return {
+        "evaluation": evaluation,
+        "token_stats": token_stats,
+        "cost": cost_info,
+        "raw_text": evaluation_text,
+    }
 
 
 def rag_new(
@@ -356,8 +379,8 @@ def rag_new(
         oncology_results = _dedupe_by_chunk_id(oncology_results)
 
     if question_type == "conditions":
-        recent_context = rag_module.build_context(overview_filtered)
-        longitudinal_context = rag_module.build_context(conditions_results)
+        recent_context = retrieval.build_context(overview_filtered)
+        longitudinal_context = retrieval.build_context(conditions_results)
 
         context = f"""
 RECENT PATIENT OVERVIEW CONDITIONS:
@@ -368,8 +391,8 @@ LONGITUDINAL CONDITIONS RECORDS:
 """.strip()
 
     elif question_type == "patient_overview":
-        overview_context = rag_module.build_context(overview_filtered)
-        oncology_context = rag_module.build_context(oncology_results)
+        overview_context = retrieval.build_context(overview_filtered)
+        oncology_context = retrieval.build_context(oncology_results)
 
         context = f"""
 PATIENT OVERVIEW CONTEXT:
@@ -381,7 +404,7 @@ ONCOLOGY TIMELINE CONTEXT:
 
     else:
         all_results = _dedupe_by_chunk_id(overview_filtered + oncology_results)
-        context = rag_module.build_context(all_results)
+        context = retrieval.build_context(all_results)
 
     prompt = build_prompt_with_mode(
         question=query,
@@ -389,10 +412,10 @@ ONCOLOGY TIMELINE CONTEXT:
         prompt_mode=prompt_mode,
     )
 
-    llm_out = rag_module.llm(prompt=prompt, model=model)
+    llm_out = retrieval.llm(prompt=prompt, model=model)
     answer = llm_out["answer"]
     token_stats = llm_out["token_stats"]
-    cost_info = rag_module.calculate_openai_cost(model, token_stats)
+    cost_info = retrieval.calculate_openai_cost(model, token_stats)
 
     patient_name, patient_dob, patient_age, patient_gender = _extract_patient_identity(overview_results)
 

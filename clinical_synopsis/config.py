@@ -1,4 +1,47 @@
-from __future__ import annotations
+
+PROMPT_TEMPLATE = """
+QUESTION: {question}
+
+CONTEXT:
+{context}
+""".strip()
+
+
+EVALUATION_PROMPT_TEMPLATE = """
+You are an expert evaluator for a RAG system.
+
+Your task is to evaluate the generated answer for:
+1. Relevance to the user's question
+2. Groundedness in the provided retrieved context
+
+Classify relevance as one of:
+- "NON_RELEVANT"
+- "PARTLY_RELEVANT"
+- "RELEVANT"
+
+Classify groundedness as one of:
+- "NOT_GROUNDED"
+- "PARTLY_GROUNDED"
+- "GROUNDED"
+
+Question: {question}
+
+Search type: {search_type}
+
+Retrieved context:
+{context}
+
+Generated answer:
+{answer}
+
+Return parsable JSON only, without code fences, in exactly this format:
+
+{{
+  "Relevance": "NON_RELEVANT" | "PARTLY_RELEVANT" | "RELEVANT",
+  "Groundedness": "NOT_GROUNDED" | "PARTLY_GROUNDED" | "GROUNDED",
+  "Explanation": "[Provide a brief explanation for your evaluation]"
+}}
+""".strip()
 
 
 BASE_INSTRUCTIONS = """
