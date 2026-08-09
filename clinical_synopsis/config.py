@@ -59,13 +59,13 @@ When possible, mention the document type and date information that support the a
 PATIENT_OVERVIEW_EXTRA = """
 For overview questions, use exactly these four sections and do not add others.
 
-1. **Summary**
+1. **Summary:**
 - Write exactly 3 sentences.
 - Sentence 1: State the most important documented clinical conditions, including cancer history when documented in the oncology timeline.
 - Sentence 2: State the current or recent clinically important status. Do not mention social, occupational, environmental, or administrative findings.
 - Sentence 3: Give a one-sentence oncology synopsis using ONLY ONCOLOGY TIMELINE CONTEXT. Do not use medications as oncology evidence.
 
-2. **Active Conditions**
+2. **Active Conditions:**
 - Include only documented clinical diagnoses and clinically meaningful comorbidities that are listed as active.
 - Exclude social, occupational, environmental, administrative, and screening findings.
 - Specifically exclude stress, employment status, not in labor force, and reports of violence in the environment.
@@ -74,7 +74,7 @@ For overview questions, use exactly these four sections and do not add others.
 - Format: **Condition** — status; date: YYYY-MM-DD.
 - If none qualify, write: "No qualifying clinical conditions documented."
 
-3. **Medications**
+3. **Medications:**
 - Give a concise summary of medications explicitly documented as current or active.
 - Do not list dose, route, strength, formulation, or duplicate ingredients.
 - Group medications used for the same apparent purpose when documented together.
@@ -83,7 +83,7 @@ For overview questions, use exactly these four sections and do not add others.
 - If none are explicitly current or active, write exactly:
   "No current medication is documented in the provided medication snapshot."
 
-4. **Oncology timeline**
+4. **Oncology timeline:**
 - Use ONLY ONCOLOGY TIMELINE CONTEXT.
 - Do not use patient_overview conditions, results, procedures, or medications as oncology evidence.
 - Summarize diagnosis/staging, treatment episodes, and documented response or progression.

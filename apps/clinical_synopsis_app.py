@@ -11,7 +11,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from clinical_synopsis.question_router import route_question
-from clinical_synopsis.rag_service import rag_new
+from clinical_synopsis.rag_service import get_patient_catalog, rag_new
 from clinical_synopsis.feedback import save_feedback
 
 
@@ -39,9 +39,24 @@ def render_source_documents(patient_id: str) -> None:
     overview_path = patient_dir / "patient_overview.md"
 
     # Show the readable overview first
+    # if overview_path.exists():
+    #     with st.expander("View patient overview", expanded=False):
+    #         st.markdown(overview_path.read_text(encoding="utf-8"))
+        # Show a small readable preview first
     if overview_path.exists():
+        overview_text = overview_path.read_text(encoding="utf-8")
+        # preview_text = overview_text[:800]
+        # if len(overview_text) > 800:
+        #     preview_text += "\n\n..."
+
         with st.expander("View patient overview", expanded=False):
-            st.markdown(overview_path.read_text(encoding="utf-8"))
+            st.text_area(
+                "Patient overview preview",
+                value=overview_text,
+                height=140,
+                disabled=True,
+                label_visibility="collapsed",
+            )
     else:
         st.info("No patient overview is available for this patient.")
 
@@ -110,11 +125,31 @@ if not os.environ.get("OPENAI_API_KEY"):
     st.stop()
 
 with st.sidebar:
+    # st.header("Patient")
+    # patient_id = st.text_input(
+    #     "Patient ID",
+    #     placeholder="e.g. f203e11d-5573-1624-69b8-af8436987b3e",
+    # ).strip()
     st.header("Patient")
-    patient_id = st.text_input(
-        "Patient ID",
-        placeholder="e.g. f203e11d-5573-1624-69b8-af8436987b3e",
-    ).strip()
+    patients = get_patient_catalog()
+    patient_options = [""] + [
+        patient["patient_id"]
+        for patient in patients
+    ]
+    patient_labels = {
+        patient["patient_id"]: patient["label"]
+        for patient in patients
+    }
+    selected_patient_id = st.selectbox(
+        "Select patient",
+        options=patient_options,
+        format_func=lambda value: (
+            "Select a patient..."
+            if not value
+            else patient_labels[value]
+        ),
+    )
+    patient_id = selected_patient_id
 
     st.header("Answer settings")
     search_type = st.selectbox(

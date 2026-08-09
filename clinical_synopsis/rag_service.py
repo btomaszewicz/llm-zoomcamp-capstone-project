@@ -2,6 +2,7 @@ import json
 from datetime import date
 import re
 from typing import Any
+from functools import lru_cache
 
 from openai import OpenAI
 
@@ -61,6 +62,68 @@ def _search_patient_identity(search_type: str, patient_id: str, num_results: int
         num_results=num_results,
     )
     return _extract_patient_identity(identity_results)
+
+
+@lru_cache(maxsize=1)
+def get_patient_catalog() -> list[dict[str, Any]]:
+    """
+    Return one display-ready identity record per patient found in the index.
+
+    Uses patient_overview chunks because they contain:
+    - patient_id
+    - title: "Patient Overview: <name>"
+    - Identity chunk with birth date and gender
+    """
+    _, documents = retrieval.load_vector_index()
+
+    docs_by_patient: dict[str, list[dict[str, Any]]] = {}
+
+    for doc in documents:
+        if doc.get("doc_type") != "patient_overview":
+            continue
+
+        patient_id = doc.get("patient_id")
+        if not patient_id:
+            continue
+
+        docs_by_patient.setdefault(patient_id, []).append(doc)
+
+    patients = []
+
+    for patient_id, patient_docs in docs_by_patient.items():
+        patient_name, patient_dob, patient_age, patient_gender = (
+            _extract_patient_identity(patient_docs)
+        )
+
+        patient_name = patient_name or "Unnamed patient"
+
+        label_parts = [patient_name]
+
+        if patient_dob:
+            label_parts.append(f"DOB {patient_dob}")
+
+        if patient_gender:
+            label_parts.append(patient_gender.title())
+
+        # Keep the ID visible because synthetic names could potentially repeat.
+        label_parts.append(f"ID {patient_id[:8]}…")
+
+        patients.append({
+            "patient_id": patient_id,
+            "patient_name": patient_name,
+            "patient_dob": patient_dob,
+            "patient_age_years": patient_age,
+            "patient_gender": patient_gender,
+            "label": " — ".join(label_parts),
+        })
+
+    return sorted(
+        patients,
+        key=lambda patient: (
+            patient["patient_name"].lower(),
+            patient["patient_id"],
+        ),
+    )
 
 
 def _search(
