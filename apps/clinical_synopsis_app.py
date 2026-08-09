@@ -1,6 +1,7 @@
 import os
 import sys
 from pathlib import Path
+import pandas as pd
 
 import streamlit as st
 
@@ -36,78 +37,76 @@ DERIVED_ROOT = Path(
 
 def render_source_documents(patient_id: str) -> None:
     patient_dir = DERIVED_ROOT / patient_id
+
     overview_path = patient_dir / "patient_overview.md"
+    oncology_timeline_path = patient_dir / "oncology_timeline.md"
 
-    # Show the readable overview first
-    # if overview_path.exists():
-    #     with st.expander("View patient overview", expanded=False):
-    #         st.markdown(overview_path.read_text(encoding="utf-8"))
-        # Show a small readable preview first
+    # 1. Readable patient overview
     if overview_path.exists():
-        overview_text = overview_path.read_text(encoding="utf-8")
-        # preview_text = overview_text[:800]
-        # if len(overview_text) > 800:
-        #     preview_text += "\n\n..."
-
         with st.expander("View patient overview", expanded=False):
+            overview_text = overview_path.read_text(encoding="utf-8")
+
             st.text_area(
-                "Patient overview preview",
+                "Patient overview record",
                 value=overview_text,
-                height=140,
+                height=420,
                 disabled=True,
                 label_visibility="collapsed",
+                key=f"{patient_id}_patient_overview",
             )
-    else:
-        st.info("No patient overview is available for this patient.")
 
-    # Keep detailed structured source files as downloads
-    source_files = [
-        ("Patient overview", "patient_overview.md", "text/markdown"),
-        ("Conditions", "conditions.csv", "text/csv"),
-        ("Medications", "medications.csv", "text/csv"),
-        ("Oncology timeline", "oncology_timeline.md", "text/markdown"),
-        ("Oncology timeline events", "oncology_timeline_events.csv", "text/csv"),
-        ("Procedures", "procedures.csv", "text/csv"),
-        ("Diagnostic reports", "diagnostic_reports.csv", "text/csv"),
-        ("Encounters", "encounters.csv", "text/csv"),
+    # 2. Readable oncology timeline, only when available
+    if oncology_timeline_path.exists():
+        with st.expander("View oncology timeline", expanded=False):
+            timeline_text = oncology_timeline_path.read_text(encoding="utf-8")
+
+            st.text_area(
+                "Oncology timeline record",
+                value=timeline_text,
+                height=320,
+                disabled=True,
+                label_visibility="collapsed",
+                key=f"{patient_id}_oncology_timeline",
+            )
+
+    # 3. Interactive previews of structured source records
+    csv_files = [
+        ("Conditions", "conditions.csv"),
+        ("Medications", "medications.csv"),
+        ("Oncology timeline events", "oncology_timeline_events.csv"),
+        ("Procedures", "procedures.csv"),
+        ("Diagnostic reports", "diagnostic_reports.csv"),
+        ("Encounters", "encounters.csv"),
     ]
 
-    available_sources = [
-        (label, patient_dir / filename, mime_type)
-        for label, filename, mime_type in source_files
+    available_csvs = [
+        (label, patient_dir / filename)
+        for label, filename in csv_files
         if (patient_dir / filename).exists()
     ]
 
-    if not available_sources:
+    if not overview_path.exists() and not available_csvs:
         st.info("No source documents are available for this patient.")
         return
 
-    st.caption("Download detailed source records:")
+    if available_csvs:
+        st.caption("View detailed structured source records:")
 
-    columns = st.columns(2)
+    for label, file_path in available_csvs:
+        with st.expander(f"View {label}", expanded=False):
+            try:
+                df = pd.read_csv(file_path)
 
-    for index, (label, file_path, mime_type) in enumerate(available_sources):
-        with columns[index % 2]:
-            st.download_button(
-                label=f"Download {label}",
-                data=file_path.read_bytes(),
-                file_name=file_path.name,
-                mime=mime_type,
-                use_container_width=True,
-                key=f"{patient_id}_{file_path.name}",
-            )
+                st.caption(f"{len(df):,} records")
 
-    overview_path = patient_dir / "patient_overview.md"
-
-    # # if overview_path.exists():
-    # #     with st.expander("View patient overview"):
-    # #         st.markdown(overview_path.read_text(encoding="utf-8"))
-    # if overview_path.exists():
-    #     with st.expander("View patient overview"):
-    #         try:
-    #             st.markdown(overview_path.read_text(encoding="utf-8"))
-    #         except OSError:
-    #             st.warning("The patient overview could not be read.")
+                st.dataframe(
+                    df,
+                    hide_index=True,
+                    use_container_width=True,
+                    height=320,
+                )
+            except (OSError, pd.errors.ParserError, UnicodeDecodeError) as exc:
+                st.warning(f"Could not display {file_path.name}: {exc}")
 
 
 
@@ -117,8 +116,14 @@ st.set_page_config(
     layout="centered",
 )
 
+if "response" not in st.session_state:
+    st.session_state.response = None
+
+if "feedback_message" not in st.session_state:
+    st.session_state.feedback_message = None
+
 st.title("Clinical Synopsis")
-st.caption("Record-grounded clinical summaries. Verify important information against the source record.")
+st.caption("Source-Grounded Patient Summaries. Verify the answer against the patient's Electronic Health Record.")
 
 if not os.environ.get("OPENAI_API_KEY"):
     st.error("OPENAI_API_KEY is not configured for this Streamlit process.")
@@ -162,7 +167,7 @@ with st.sidebar:
 
 question = st.text_area(
     "Question",
-    placeholder="For example: Summarize this patient's oncology history.",
+    placeholder="For example: Provide an overview of this patient's medical background and current status.",
     height=110,
 )
 
@@ -192,8 +197,9 @@ ask = st.button("Generate synopsis", type="primary", use_container_width=True)
 
 if ask:
     if not patient_id:
-        st.error("Enter a patient ID.")
+        st.error("Select a patient.")
         st.stop()
+
     if not question.strip():
         st.error("Enter a question.")
         st.stop()
@@ -212,101 +218,172 @@ if ask:
         st.exception(exc)
         st.stop()
 
-    patient_name = result.get("patient_name") or "Patient"
-    dob = result.get("patient_dob") or "Not documented"
-    age = result.get("patient_age_years")
-    gender = result.get("patient_gender") or "Not documented"
+    # Store a snapshot. It survives future widget-triggered reruns.
+    st.session_state.response = {
+        "patient_id": patient_id,
+        "question": question.strip(),
+        "question_type": question_type,
+        "search_type": search_type,
+        "model": model,
+        "answer": result["answer"],
+        "patient_name": result.get("patient_name") or "Patient",
+        "patient_dob": result.get("patient_dob") or "Not documented",
+        "patient_age_years": result.get("patient_age_years"),
+        "patient_gender": result.get("patient_gender") or "Not documented",
+        "routing_suggestion": route.question_type if route else None,
+        "routing_confidence": route.confidence if route else None,
+        "routing_scores": route.scores if route else None,
+        "input_tokens": result.get("input_tokens"),
+        "output_tokens": result.get("output_tokens"),
+        "total_cost": result.get("total_cost"),
+    }
 
-    st.subheader(patient_name)
-    demographics = [f"DOB: {dob}", f"Gender: {gender}"]
-    if age is not None:
-        demographics.insert(1, f"Age: {age}")
+    # Do not show a “feedback saved” message for a newly generated answer.
+    st.session_state.feedback_message = None
+
+
+# This section is deliberately OUTSIDE `if ask:`.
+# It remains visible when the user clicks any feedback widget.
+response = st.session_state.response
+
+if response is not None:
+    patient_id = response["patient_id"]
+
+    st.subheader(response["patient_name"])
+
+    demographics = [
+        f"DOB: {response['patient_dob']}",
+        f"Gender: {response['patient_gender']}",
+    ]
+
+    if response["patient_age_years"] is not None:
+        demographics.insert(1, f"Age: {response['patient_age_years']}")
+
     st.caption(" · ".join(demographics))
 
-    st.markdown(result["answer"])
+    st.markdown(response["answer"])
 
     st.divider()
     st.subheader("Source documents")
-    # st.caption(
-    #     "Download the underlying patient summary and structured records "
-    #     "to review the evidence behind this answer."
-    # )
-
     render_source_documents(patient_id)
 
-    # user feedback
     st.divider()
     st.subheader("Answer feedback")
 
-    feedback_score = st.radio(
-        "Was this answer useful and accurate?",
-        options=[5, 4, 3, 2, 1],
-        horizontal=True,
-        format_func=lambda score: {
-            5: "5 — Excellent",
-            4: "4 — Good",
-            3: "3 — Usable with changes",
-            2: "2 — Poor",
-            1: "1 — Unusable",
-        }[score],
-    )
+    if st.session_state.feedback_message:
+        st.success(st.session_state.feedback_message)
 
-    accuracy_issue = st.checkbox(
-        "Potential clinical accuracy issue",
-        help="Select this if the answer appears inaccurate, unsupported, or potentially misleading.",
-    )
+    # The form prevents a rerun each time a rating, checkbox, or comment changes.
+    with st.form(
+        key=f"feedback_form_{patient_id}_{hash(response['question'])}",
+        clear_on_submit=False,
+    ):
+        feedback_score = st.radio(
+            "Was this answer useful and accurate?",
+            options=[5, 4, 3, 2, 1],
+            horizontal=True,
+            format_func=lambda score: {
+                5: "5 — Excellent",
+                4: "4 — Good",
+                3: "3 — Usable with changes",
+                2: "2 — Poor",
+                1: "1 — Unusable",
+            }[score],
+        )
 
-    issue_type = st.selectbox(
-        "Issue type",
-        options=[
-            "No issue",
-            "Incorrect fact",
-            "Missing important information",
-            "Too much or irrelevant information",
-            "Wrong question type",
-            "Unclear format or wording",
-            "Other",
-        ],
-    )
+        accuracy_issue = st.checkbox(
+            "Potential clinical accuracy issue",
+            help=(
+                "Select this if the answer appears inaccurate, unsupported, "
+                "or potentially misleading."
+            ),
+        )
 
-    feedback_comment = st.text_area(
-        "Optional comment",
-        placeholder="For example: Breast-cancer treatment history was omitted.",
-        height=90,
-    )
+        issue_type = st.selectbox(
+            "Issue type",
+            options=[
+                "No issue",
+                "Incorrect fact",
+                "Missing important information",
+                "Too much or irrelevant information",
+                "Wrong question type",
+                "Unclear format or wording",
+                "Other",
+            ],
+        )
 
-    if st.button("Submit feedback"):
+        feedback_comment = st.text_area(
+            "Optional comment",
+            placeholder=(
+                "For example: Breast-cancer treatment history was omitted."
+            ),
+            height=90,
+        )
+
+        submit_feedback = st.form_submit_button(
+            "Submit feedback",
+            type="primary",
+        )
+
+    if submit_feedback:
         feedback_event = {
-            "patient_id": patient_id,
-            "question": question.strip(),
-            "question_type": question_type,
-            "search_type": search_type,
-            "model": model,
-            "answer": result["answer"],
-            "routing_suggestion": route.question_type if route else None,
-            "routing_confidence": route.confidence if route else None,
+            "patient_id": response["patient_id"],
+            "question": response["question"],
+            "question_type": response["question_type"],
+            "search_type": response["search_type"],
+            "model": response["model"],
+            "answer": response["answer"],
+            "routing_suggestion": response["routing_suggestion"],
+            "routing_confidence": response["routing_confidence"],
             "feedback_score": feedback_score,
-            "accuracy_issue": accuracy_issue,
+            "accuracy_issue": int(accuracy_issue),
             "issue_type": issue_type,
-            "comment": feedback_comment.strip(),
-            "input_tokens": result.get("input_tokens"),
-            "output_tokens": result.get("output_tokens"),
-            "total_cost": result.get("total_cost"),
+            "comment": feedback_comment.strip() or None,
+            "input_tokens": response["input_tokens"],
+            "output_tokens": response["output_tokens"],
+            "total_cost": response["total_cost"],
         }
 
-        save_feedback(feedback_event)
-        st.success("Feedback saved. Thank you.")
+        try:
+            feedback_id = save_feedback(feedback_event)
+            st.session_state.feedback_message = (
+                f"Feedback saved successfully — record #{feedback_id}."
+            )
+            st.success(st.session_state.feedback_message)
+
+        except Exception as exc:
+            st.error("Feedback could not be saved.")
+            st.exception(exc)
 
     with st.expander("Answer details"):
-        st.write(f"Question type: {QUESTION_TYPE_LABELS[question_type]}")
-        st.write(f"Retrieval method: {search_type}")
-        st.write(f"Model: {model}")
-        st.write(f"Input tokens: {result.get('input_tokens', 0):,}")
-        st.write(f"Output tokens: {result.get('output_tokens', 0):,}")
-        st.write(f"Estimated cost: ${result.get('total_cost', 0.0):.6f}")
+        st.write(
+            f"Question type: "
+            f"{QUESTION_TYPE_LABELS[response['question_type']]}"
+        )
+        st.write(f"Retrieval method: {response['search_type']}")
+        st.write(f"Model: {response['model']}")
+        st.write(
+            f"Input tokens: {response['input_tokens'] or 0:,}"
+        )
+        st.write(
+            f"Output tokens: {response['output_tokens'] or 0:,}"
+        )
+        st.write(
+            f"Estimated cost: ${response['total_cost'] or 0.0:.6f}"
+        )
 
-    if route:
+    if response["routing_suggestion"] or response["routing_scores"]:
         with st.expander("Routing details"):
-            st.write(f"Suggested type: {route.question_type or 'Clarification required'}")
-            st.write(f"Routing confidence: {route.confidence:.0%}")
-            st.json(route.scores)
+            st.write(
+                "Suggested type: "
+                f"{response['routing_suggestion'] or 'Clarification required'}"
+            )
+
+            if response["routing_confidence"] is not None:
+                st.write(
+                    "Routing confidence: "
+                    f"{response['routing_confidence']:.0%}"
+                )
+
+            if response["routing_scores"] is not None:
+                st.json(response["routing_scores"])
