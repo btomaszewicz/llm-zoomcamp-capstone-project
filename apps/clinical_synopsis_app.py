@@ -1,7 +1,14 @@
 import os
+import sys
 from pathlib import Path
 
 import streamlit as st
+
+APP_DIR = Path(__file__).resolve().parent
+REPO_ROOT = APP_DIR.parent
+
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from clinical_synopsis.question_router import route_question
 from clinical_synopsis.rag_service import rag_new
@@ -17,9 +24,6 @@ QUESTION_TYPE_LABELS = {
 
 QUESTION_TYPE_OPTIONS = list(QUESTION_TYPE_LABELS)
 
-APP_DIR = Path(__file__).resolve().parent
-REPO_ROOT = APP_DIR.parent
-
 DEFAULT_DERIVED_ROOT = REPO_ROOT / "data" / "derived" / "sample50"
 
 DERIVED_ROOT = Path(
@@ -32,7 +36,16 @@ DERIVED_ROOT = Path(
 
 def render_source_documents(patient_id: str) -> None:
     patient_dir = DERIVED_ROOT / patient_id
+    overview_path = patient_dir / "patient_overview.md"
 
+    # Show the readable overview first
+    if overview_path.exists():
+        with st.expander("View patient overview", expanded=False):
+            st.markdown(overview_path.read_text(encoding="utf-8"))
+    else:
+        st.info("No patient overview is available for this patient.")
+
+    # Keep detailed structured source files as downloads
     source_files = [
         ("Patient overview", "patient_overview.md", "text/markdown"),
         ("Conditions", "conditions.csv", "text/csv"),
@@ -54,6 +67,8 @@ def render_source_documents(patient_id: str) -> None:
         st.info("No source documents are available for this patient.")
         return
 
+    st.caption("Download detailed source records:")
+
     columns = st.columns(2)
 
     for index, (label, file_path, mime_type) in enumerate(available_sources):
@@ -69,15 +84,15 @@ def render_source_documents(patient_id: str) -> None:
 
     overview_path = patient_dir / "patient_overview.md"
 
+    # # if overview_path.exists():
+    # #     with st.expander("View patient overview"):
+    # #         st.markdown(overview_path.read_text(encoding="utf-8"))
     # if overview_path.exists():
     #     with st.expander("View patient overview"):
-    #         st.markdown(overview_path.read_text(encoding="utf-8"))
-    if overview_path.exists():
-        with st.expander("View patient overview"):
-            try:
-                st.markdown(overview_path.read_text(encoding="utf-8"))
-            except OSError:
-                st.warning("The patient overview could not be read.")
+    #         try:
+    #             st.markdown(overview_path.read_text(encoding="utf-8"))
+    #         except OSError:
+    #             st.warning("The patient overview could not be read.")
 
 
 
@@ -177,10 +192,10 @@ if ask:
 
     st.divider()
     st.subheader("Source documents")
-    st.caption(
-        "Download the underlying patient summary and structured records "
-        "to review the evidence behind this answer."
-    )
+    # st.caption(
+    #     "Download the underlying patient summary and structured records "
+    #     "to review the evidence behind this answer."
+    # )
 
     render_source_documents(patient_id)
 
