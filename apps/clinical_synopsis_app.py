@@ -242,7 +242,7 @@ if ask:
     st.session_state.feedback_message = None
 
 
-# This section is deliberately OUTSIDE `if ask:`.
+# Note: this section is deliberately OUTSIDE `if ask:`.
 # It remains visible when the user clicks any feedback widget.
 response = st.session_state.response
 
@@ -264,7 +264,8 @@ if response is not None:
     st.markdown(response["answer"])
 
     st.divider()
-    st.subheader("Source documents")
+    st.subheader("Available electronic health records")
+    st.caption(f"Patient: {response['patient_name']}")
     render_source_documents(patient_id)
 
     st.divider()
