@@ -2,6 +2,7 @@ import os
 import sys
 from pathlib import Path
 import pandas as pd
+import time
 
 import streamlit as st
 
@@ -135,7 +136,7 @@ with st.sidebar:
     #     "Patient ID",
     #     placeholder="e.g. f203e11d-5573-1624-69b8-af8436987b3e",
     # ).strip()
-    st.header("Patient")
+    st.header("Synthetic patient")
     patients = get_patient_catalog()
     patient_options = [""] + [
         patient["patient_id"]
@@ -146,10 +147,10 @@ with st.sidebar:
         for patient in patients
     }
     selected_patient_id = st.selectbox(
-        "Select patient",
+        "Select a synthetic patient",
         options=patient_options,
         format_func=lambda value: (
-            "Select a patient..."
+            "Select a synthetic patient..."
             if not value
             else patient_labels[value]
         ),
@@ -197,7 +198,7 @@ ask = st.button("Generate synopsis", type="primary", use_container_width=True)
 
 if ask:
     if not patient_id:
-        st.error("Select a patient.")
+        st.error("Select a synthetic patient.")
         st.stop()
 
     if not question.strip():
@@ -206,6 +207,8 @@ if ask:
 
     try:
         with st.spinner("Retrieving the patient record and generating an answer..."):
+            started_at = time.perf_counter()
+
             result = rag_new(
                 query=question.strip(),
                 patient_id=patient_id,
@@ -213,6 +216,8 @@ if ask:
                 search_type=search_type,
                 model=model,
             )
+            
+            latency_seconds = time.perf_counter() - started_at
     except Exception as exc:
         st.error("The synopsis could not be generated.")
         st.exception(exc)
@@ -236,6 +241,7 @@ if ask:
         "input_tokens": result.get("input_tokens"),
         "output_tokens": result.get("output_tokens"),
         "total_cost": result.get("total_cost"),
+        "latency_seconds": latency_seconds,
     }
 
     # Do not show a “feedback saved” message for a newly generated answer.
@@ -343,6 +349,7 @@ if response is not None:
             "input_tokens": response["input_tokens"],
             "output_tokens": response["output_tokens"],
             "total_cost": response["total_cost"],
+            "latency_seconds": response["latency_seconds"],
         }
 
         try:

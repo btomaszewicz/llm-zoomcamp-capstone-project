@@ -29,9 +29,17 @@ def save_feedback(event: dict) -> None:
                 comment TEXT,
                 input_tokens INTEGER,
                 output_tokens INTEGER,
-                total_cost REAL
+                total_cost REAL,
+                latency_seconds REAL
             )
         """)
+
+        try:
+            conn.execute(
+                "ALTER TABLE feedback ADD COLUMN latency_seconds REAL"
+            )
+        except sqlite3.OperationalError:
+            pass
 
         conn.execute("""
             INSERT INTO feedback (
@@ -39,9 +47,9 @@ def save_feedback(event: dict) -> None:
                 search_type, model, answer,
                 routing_suggestion, routing_confidence,
                 feedback_score, accuracy_issue, issue_type, comment,
-                input_tokens, output_tokens, total_cost
+                input_tokens, output_tokens, total_cost, latency_seconds
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             datetime.now(timezone.utc).isoformat(),
             event.get("patient_id"),
@@ -59,4 +67,5 @@ def save_feedback(event: dict) -> None:
             event.get("input_tokens"),
             event.get("output_tokens"),
             event.get("total_cost"),
+            event.get("latency_seconds")
         ))

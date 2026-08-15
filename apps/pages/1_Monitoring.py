@@ -42,6 +42,7 @@ EXPECTED_COLUMNS = [
     "input_tokens",
     "output_tokens",
     "total_cost",
+    "latency_seconds",
 ]
 
 
@@ -87,6 +88,8 @@ def load_feedback(db_path: str) -> pd.DataFrame:
         feedback["feedback_score"], errors="coerce")
     feedback["total_cost"] = pd.to_numeric(
         feedback["total_cost"], errors="coerce")
+    feedback["latency_seconds"] = pd.to_numeric(
+        feedback["latency_seconds"], errors="coerce")
     feedback["accuracy_issue"] = pd.to_numeric(
         feedback["accuracy_issue"], errors="coerce").fillna(0).astype(int)
 
@@ -121,7 +124,6 @@ def render_source_preview(patient_id: str, feedback_id: int) -> None:
 st.title("Clinical Synopsis Monitoring")
 st.caption(
     "Review clinician feedback, answer quality signals, routing behavior, and cost. "
-    "This interface contains patient-level data and should be access-controlled in deployment."
 )
 
 if st.button("Refresh data"):
@@ -239,6 +241,10 @@ if patient_search:
     ]
 
 filtered = filtered.sort_values("created_at", ascending=False)
+if filtered.empty:
+    st.info("No feedback records match the selected filters.")
+    st.stop()
+
 rated = filtered.dropna(subset=["feedback_score"])
 
 average_score = rated["feedback_score"].mean()
@@ -257,7 +263,7 @@ accuracy_flag_rate = (
 total_cost = filtered["total_cost"].sum(min_count=1)
 
 st.subheader("Quality summary")
-metric_columns = st.columns(5)
+metric_columns = st.columns(4)
 metric_columns[0].metric("Feedback records", f"{len(filtered):,}")
 metric_columns[1].metric("Average score", metric_value(average_score))
 metric_columns[2].metric("Scores ≤ 2", metric_value(low_score_rate, "{:.1f}%"))
@@ -265,7 +271,7 @@ metric_columns[3].metric(
     "Accuracy flags",
     metric_value(accuracy_flag_rate, "{:.1f}%"),
 )
-metric_columns[4].metric("Estimated cost", metric_value(total_cost, "${:.4f}"))
+# metric_columns[4].metric("Estimated cost", metric_value(total_cost, "${:.4f}"))
 
 chart_columns = st.columns(2)
 
@@ -293,6 +299,102 @@ with chart_columns[1]:
         st.bar_chart(issue_counts)
 
 st.divider()
+st.subheader("Usage and cost")
+
+usage_columns = st.columns(4)
+
+# usage_columns[0].metric(
+#     "Total queries",          #we're saving feedback, not queries, which can be run without feedback
+#     f"{len(filtered):,}",
+# )
+usage_columns[0].metric(
+    "Feedback submissions",
+    f"{len(filtered):,}",
+)
+
+usage_columns[1].metric(
+    "Total input tokens",
+    f"{filtered['input_tokens'].fillna(0).sum():,.0f}",
+)
+
+usage_columns[2].metric(
+    "Total output tokens",
+    f"{filtered['output_tokens'].fillna(0).sum():,.0f}",
+)
+
+usage_columns[3].metric(
+    "Total estimated cost",
+    f"${filtered['total_cost'].fillna(0).sum():.4f}",
+)
+
+chart_left, chart_right = st.columns(2)
+
+with chart_left:
+    st.subheader("Feedback volume by day")
+
+    daily_queries = (
+        filtered
+        .dropna(subset=["created_at"])
+        .assign(date=lambda df: df["created_at"].dt.date)
+        .groupby("date")
+        .size()
+        .rename("queries")
+    )
+
+    if daily_queries.empty:
+        st.caption("No dated query records are available.")
+    else:
+        st.line_chart(daily_queries)
+
+with chart_right:
+    st.subheader("Estimated cost by question type")
+
+    cost_by_question_type = (
+        filtered
+        .groupby("question_type")["total_cost"]
+        .sum()
+        .sort_values(ascending=False)
+        .rename("estimated_cost")
+    )
+
+    if cost_by_question_type.empty:
+        st.caption("No cost data is available.")
+    else:
+        st.bar_chart(cost_by_question_type)
+
+st.subheader("Token usage by retrieval method")
+
+tokens_by_search_type = (
+    filtered
+    .groupby("search_type")[["input_tokens", "output_tokens"]]
+    .sum()
+    .fillna(0)
+)
+
+if tokens_by_search_type.empty:
+    st.caption("No token-usage data is available.")
+else:
+    st.bar_chart(tokens_by_search_type)
+
+st.divider()
+st.subheader("Answer-generation latency")
+
+latency_by_type = (
+    filtered
+    .dropna(subset=["latency_seconds"])
+    .groupby("question_type")["latency_seconds"]
+    .mean()
+    .sort_values(ascending=False)
+    .rename("average_seconds")
+)
+
+if latency_by_type.empty:
+    st.caption("Latency will appear after new answer requests are recorded.")
+else:
+    st.bar_chart(latency_by_type)
+
+
+st.divider()
 st.subheader("Feedback records")
 
 TABLE_COLUMNS = [
@@ -306,6 +408,7 @@ TABLE_COLUMNS = [
     "accuracy_issue",
     "issue_type",
     "total_cost",
+    "latency_seconds",
     "question",
     "comment",
 ]
@@ -320,6 +423,7 @@ st.dataframe(
         "feedback_score": st.column_config.NumberColumn("Score", format="%d / 5"),
         "accuracy_issue": st.column_config.CheckboxColumn("Accuracy flag"),
         "total_cost": st.column_config.NumberColumn("Cost", format="$%.6f"),
+        "latency_seconds": st.column_config.NumberColumn("Latency", format="%.2f s"),
         "question": st.column_config.TextColumn("Question", width="large"),
         "comment": st.column_config.TextColumn("Comment", width="large"),
     },
@@ -332,10 +436,6 @@ st.download_button(
     file_name="clinical_synopsis_feedback.csv",
     mime="text/csv",
 )
-
-if filtered.empty:
-    st.info("No feedback records match the selected filters.")
-    st.stop()
 
 st.divider()
 st.subheader("Inspect an answer")
@@ -382,6 +482,7 @@ with right:
     st.write(f"**Router confidence:** {record['routing_confidence'] if pd.notna(record['routing_confidence']) else 'Not recorded'}")
     st.write(f"**Retrieval:** {record['search_type']}")
     st.write(f"**Model:** {record['model']}")
+    st.write(f"**Latency:** {record['latency_seconds']:.2f} seconds" if pd.notna(record["latency_seconds"]) else "**Latency:** Not recorded")
     st.write(f"**Input tokens:** {record['input_tokens'] if pd.notna(record['input_tokens']) else 'Not recorded'}")
     st.write(f"**Output tokens:** {record['output_tokens'] if pd.notna(record['output_tokens']) else 'Not recorded'}")
     st.write(f"**Estimated cost:** ${record['total_cost']:.6f}" if pd.notna(record['total_cost']) else "**Estimated cost:** Not recorded")
