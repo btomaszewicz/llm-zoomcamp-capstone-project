@@ -1,4 +1,5 @@
 import json
+import os
 import sqlite3
 from pathlib import Path
 
@@ -7,8 +8,23 @@ import numpy as np
 from embedder import Embedder
 
 
-DB_PATH = Path("data/retrieval/metadata.db")
-OUTPUT_DIR = Path("data/retrieval")
+DEFAULT_DB_PATH = Path("data/retrieval/metadata.db")
+DEFAULT_OUTPUT_DIR = Path("data/retrieval")
+
+DB_PATH = Path(
+    os.getenv(
+        "CLINICAL_SYNOPSIS_METADATA_DB",
+        str(DEFAULT_DB_PATH),
+    )
+)
+
+OUTPUT_DIR = Path(
+    os.getenv(
+        "CLINICAL_SYNOPSIS_RETRIEVAL_OUTPUT_DIR",
+        str(DEFAULT_OUTPUT_DIR),
+    )
+)
+
 VECTORS_PATH = OUTPUT_DIR / "vector_index.npz"
 METADATA_PATH = OUTPUT_DIR / "vector_index_metadata.json"
 

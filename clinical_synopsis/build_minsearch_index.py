@@ -1,4 +1,5 @@
 import json
+import os
 import pickle
 import sqlite3
 from pathlib import Path
@@ -6,8 +7,23 @@ from pathlib import Path
 from minsearch import Index
 
 
-DB_PATH = Path("data/retrieval/metadata.db")
-OUTPUT_DIR = Path("data/retrieval")
+DEFAULT_DB_PATH = Path("data/retrieval/metadata.db")
+DEFAULT_OUTPUT_DIR = Path("data/retrieval")
+
+DB_PATH = Path(
+    os.getenv(
+        "CLINICAL_SYNOPSIS_METADATA_DB",
+        str(DEFAULT_DB_PATH),
+    )
+)
+
+OUTPUT_DIR = Path(
+    os.getenv(
+        "CLINICAL_SYNOPSIS_RETRIEVAL_OUTPUT_DIR",
+        str(DEFAULT_OUTPUT_DIR),
+    )
+)
+
 INDEX_PATH = OUTPUT_DIR / "minsearch_index.pkl"
 DOCUMENTS_PATH = OUTPUT_DIR / "minsearch_documents.json"
 

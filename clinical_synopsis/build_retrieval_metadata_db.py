@@ -4,11 +4,26 @@ import json
 import re
 import sqlite3
 from datetime import datetime, timezone
+import os
 from pathlib import Path
 
 
-DERIVED_ROOT = Path("data/derived/sample50")
-DB_PATH = Path("data/retrieval/metadata.db")
+DEFAULT_DERIVED_ROOT = Path("data/derived/sample50")
+DEFAULT_DB_PATH = Path("data/retrieval/metadata.db")
+
+DERIVED_ROOT = Path(
+    os.getenv(
+        "CLINICAL_SYNOPSIS_DERIVED_ROOT",
+        str(DEFAULT_DERIVED_ROOT),
+    )
+)
+
+DB_PATH = Path(
+    os.getenv(
+        "CLINICAL_SYNOPSIS_METADATA_DB",
+        str(DEFAULT_DB_PATH),
+    )
+)
 
 
 ONCOLOGY_TERMS = [
@@ -285,6 +300,16 @@ def ingest_document(conn: sqlite3.Connection, patient_id: str, path: Path):
 
 
 def main():
+    if not DERIVED_ROOT.exists():
+        raise FileNotFoundError(
+            f"Derived patient directory does not exist: {DERIVED_ROOT}"
+        )
+
+    if DB_PATH.resolve().parent == Path("data/retrieval").resolve():
+        print(f"Building application metadata database: {DB_PATH}")
+    else:
+        print(f"Building sandbox metadata database: {DB_PATH}")
+
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 
     conn = sqlite3.connect(DB_PATH)
