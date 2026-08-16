@@ -68,7 +68,9 @@ def extract_patient(resource, source_file):
 
 def extract_encounter(resource, patient_id, source_file):
     encounter_class = get_nested(resource, "class", "code")
-    encounter_type_system, encounter_type_code, encounter_type_display = coding_to_text(resource.get("type", [{}])[0] if resource.get("type") else {})
+    encounter_type_system, encounter_type_code, encounter_type_display = coding_to_text(
+        resource.get("type", [{}])[0] if resource.get("type") else {}
+    )
     subject_ref = get_nested(resource, "subject", "reference")
     period_start = get_nested(resource, "period", "start")
     period_end = get_nested(resource, "period", "end")
@@ -106,7 +108,9 @@ def extract_condition(resource, patient_id, source_file):
         "display": display,
         "text": get_nested(resource, "code", "text"),
         "clinical_status": clinical_status[0].get("code") if clinical_status else None,
-        "verification_status": verification_status[0].get("code") if verification_status else None,
+        "verification_status": verification_status[0].get("code")
+        if verification_status
+        else None,
         "onset_datetime": resource.get("onsetDateTime"),
         "abatement_datetime": resource.get("abatementDateTime"),
         "recorded_date": resource.get("recordedDate"),
@@ -276,15 +280,23 @@ def process_bundle(file_path: Path):
         elif rtype == "Condition":
             condition_rows.append(extract_condition(resource, patient_id, file_path))
         elif rtype == "Observation":
-            observation_rows.append(extract_observation(resource, patient_id, file_path))
+            observation_rows.append(
+                extract_observation(resource, patient_id, file_path)
+            )
         elif rtype == "MedicationRequest":
-            medication_request_rows.append(extract_medication_request(resource, patient_id, file_path))
+            medication_request_rows.append(
+                extract_medication_request(resource, patient_id, file_path)
+            )
         elif rtype == "MedicationAdministration":
-            medication_admin_rows.append(extract_medication_administration(resource, patient_id, file_path))
+            medication_admin_rows.append(
+                extract_medication_administration(resource, patient_id, file_path)
+            )
         elif rtype == "Procedure":
             procedure_rows.append(extract_procedure(resource, patient_id, file_path))
         elif rtype == "DiagnosticReport":
-            diagnostic_report_rows.append(extract_diagnostic_report(resource, patient_id, file_path))
+            diagnostic_report_rows.append(
+                extract_diagnostic_report(resource, patient_id, file_path)
+            )
 
     patient_dir = OUTPUT_DIR / patient_id
     patient_dir.mkdir(parents=True, exist_ok=True)

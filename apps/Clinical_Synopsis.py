@@ -13,7 +13,11 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from clinical_synopsis.question_router import route_question
-from clinical_synopsis.rag_service import get_patient_catalog, rag_new, evaluate_relevance
+from clinical_synopsis.rag_service import (
+    get_patient_catalog,
+    rag_new,
+    evaluate_relevance,
+)
 from clinical_synopsis.feedback import save_feedback
 
 
@@ -110,7 +114,6 @@ def render_source_documents(patient_id: str) -> None:
                 st.warning(f"Could not display {file_path.name}: {exc}")
 
 
-
 st.set_page_config(
     page_title="Clinical Synopsis",
     page_icon="🩺",
@@ -124,7 +127,9 @@ if "feedback_message" not in st.session_state:
     st.session_state.feedback_message = None
 
 st.title("Clinical Synopsis")
-st.caption("Generate clinical summaries with supporting evidence from available patient records.")
+st.caption(
+    "Generate clinical summaries with supporting evidence from available patient records."
+)
 
 if not os.environ.get("OPENAI_API_KEY"):
     st.error("OPENAI_API_KEY is not configured for this Streamlit process.")
@@ -138,21 +143,13 @@ with st.sidebar:
     # ).strip()
     st.header("Synthetic patient")
     patients = get_patient_catalog()
-    patient_options = [""] + [
-        patient["patient_id"]
-        for patient in patients
-    ]
-    patient_labels = {
-        patient["patient_id"]: patient["label"]
-        for patient in patients
-    }
+    patient_options = [""] + [patient["patient_id"] for patient in patients]
+    patient_labels = {patient["patient_id"]: patient["label"] for patient in patients}
     selected_patient_id = st.selectbox(
         "Select a synthetic patient",
         options=patient_options,
         format_func=lambda value: (
-            "Select a synthetic patient..."
-            if not value
-            else patient_labels[value]
+            "Select a synthetic patient..." if not value else patient_labels[value]
         ),
     )
     patient_id = selected_patient_id
@@ -184,7 +181,9 @@ if route and route.question_type:
 else:
     suggested_index = 0
     if question.strip():
-        st.warning("I could not confidently classify this question. Please choose the question type.")
+        st.warning(
+            "I could not confidently classify this question. Please choose the question type."
+        )
 
 question_type = st.selectbox(
     "Question type",
@@ -224,7 +223,7 @@ if ask:
                 search_type=search_type,
                 model=model,
             )
-            
+
             latency_seconds = time.perf_counter() - started_at
     except Exception as exc:
         st.error("The synopsis could not be generated.")
@@ -338,9 +337,7 @@ if response is not None:
 
         feedback_comment = st.text_area(
             "Optional comment",
-            placeholder=(
-                "For example: Breast-cancer treatment history was omitted."
-            ),
+            placeholder=("For example: Breast-cancer treatment history was omitted."),
             height=90,
         )
 
@@ -390,21 +387,12 @@ if response is not None:
             st.exception(exc)
 
     with st.expander("Answer details"):
-        st.write(
-            f"Question type: "
-            f"{QUESTION_TYPE_LABELS[response['question_type']]}"
-        )
+        st.write(f"Question type: {QUESTION_TYPE_LABELS[response['question_type']]}")
         st.write(f"Retrieval method: {response['search_type']}")
         st.write(f"Model: {response['model']}")
-        st.write(
-            f"Input tokens: {response['input_tokens'] or 0:,}"
-        )
-        st.write(
-            f"Output tokens: {response['output_tokens'] or 0:,}"
-        )
-        st.write(
-            f"Estimated cost: ${response['total_cost'] or 0.0:.6f}"
-        )
+        st.write(f"Input tokens: {response['input_tokens'] or 0:,}")
+        st.write(f"Output tokens: {response['output_tokens'] or 0:,}")
+        st.write(f"Estimated cost: ${response['total_cost'] or 0.0:.6f}")
 
     if response["routing_suggestion"] or response["routing_scores"]:
         with st.expander("Routing details"):
@@ -414,10 +402,7 @@ if response is not None:
             )
 
             if response["routing_confidence"] is not None:
-                st.write(
-                    "Routing confidence: "
-                    f"{response['routing_confidence']:.0%}"
-                )
+                st.write(f"Routing confidence: {response['routing_confidence']:.0%}")
 
             if response["routing_scores"] is not None:
                 st.json(response["routing_scores"])

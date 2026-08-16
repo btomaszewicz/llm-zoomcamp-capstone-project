@@ -1,10 +1,12 @@
 from dataclasses import dataclass
 
+
 @dataclass
 class RouteResult:
     question_type: str | None
     confidence: float
     scores: dict[str, float]
+
 
 def route_question(question: str) -> RouteResult:
     q = question.lower()

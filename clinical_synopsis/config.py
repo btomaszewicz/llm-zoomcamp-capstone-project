@@ -1,4 +1,3 @@
-
 PROMPT_TEMPLATE = """
 QUESTION: {question}
 
@@ -220,7 +219,12 @@ QUESTION_TYPES = {
         "doc_types_primary": ["patient_overview"],
         "doc_types_med_fallback": ["medications"],
         "doc_types_onco_fallback": ["oncology_timeline"],
-        "headings_primary": ["Recent Conditions", "Recent Results", "Procedures", "Medications"],
+        "headings_primary": [
+            "Recent Conditions",
+            "Recent Results",
+            "Procedures",
+            "Medications",
+        ],
     },
     "conditions": {
         "prompt_mode": "extract_conditions",

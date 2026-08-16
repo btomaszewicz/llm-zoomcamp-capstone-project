@@ -30,7 +30,9 @@ def _calculate_age(dob_str: str | None, as_of: date | None = None) -> int | None
     return as_of.year - dob.year - ((as_of.month, as_of.day) < (dob.month, dob.day))
 
 
-def _extract_patient_identity(search_results: list[dict[str, Any]]) -> tuple[str | None, str | None, int | None, str | None]:
+def _extract_patient_identity(
+    search_results: list[dict[str, Any]],
+) -> tuple[str | None, str | None, int | None, str | None]:
     patient_name = None
     patient_dob = None
     patient_gender = None
@@ -41,7 +43,9 @@ def _extract_patient_identity(search_results: list[dict[str, Any]]) -> tuple[str
             patient_name = title.split(":", 1)[1].strip()
 
         chunk_text = doc.get("chunk_text", "")
-        dob_match = re.search(r"^\s*-\s*Birth date:\s*(\d{4}-\d{2}-\d{2})", chunk_text, re.M)
+        dob_match = re.search(
+            r"^\s*-\s*Birth date:\s*(\d{4}-\d{2}-\d{2})", chunk_text, re.M
+        )
         gender_match = re.search(r"^\s*-\s*Gender:\s*([A-Za-z]+)", chunk_text, re.M)
 
         if dob_match:
@@ -108,14 +112,16 @@ def get_patient_catalog() -> list[dict[str, Any]]:
         # Keep the ID visible because synthetic names could potentially repeat.
         label_parts.append(f"ID {patient_id[:8]}…")
 
-        patients.append({
-            "patient_id": patient_id,
-            "patient_name": patient_name,
-            "patient_dob": patient_dob,
-            "patient_age_years": patient_age,
-            "patient_gender": patient_gender,
-            "label": " — ".join(label_parts),
-        })
+        patients.append(
+            {
+                "patient_id": patient_id,
+                "patient_name": patient_name,
+                "patient_dob": patient_dob,
+                "patient_age_years": patient_age,
+                "patient_gender": patient_gender,
+                "label": " — ".join(label_parts),
+            }
+        )
 
     return sorted(
         patients,
@@ -198,6 +204,7 @@ def _dedupe_by_chunk_id(docs: list[dict[str, Any]]) -> list[dict[str, Any]]:
 # ANSWER:
 # """.strip()
 
+
 #     return prompt
 def build_prompt_with_mode(question: str, context: str, prompt_mode: str) -> str:
     extra = PROMPT_MODES.get(prompt_mode, "")
@@ -239,7 +246,7 @@ def calculate_openai_cost(model, tokens):
 
     pricing = {
         "gpt-5.4-mini": {
-            "input_price_per_million": 0.75,   # USD per 1M input tokens
+            "input_price_per_million": 0.75,  # USD per 1M input tokens
             "output_price_per_million": 4.50,  # USD per 1M output tokens
         },
         # Add other models here if needed.
@@ -434,7 +441,9 @@ def rag_new(
         num_results=primary_num_results,
     )
 
-    if question_type == "patient_overview" and not _has_heading(overview_results, "Medications"):
+    if question_type == "patient_overview" and not _has_heading(
+        overview_results, "Medications"
+    ):
         medication_results = _search(
             search_type=search_type,
             query="medications",
@@ -443,15 +452,13 @@ def rag_new(
             num_results=max(num_results, 10),
         )
         medication_results = [
-            doc for doc in medication_results
-            if doc.get("heading") == "Medications"
+            doc for doc in medication_results if doc.get("heading") == "Medications"
         ]
         overview_results = _dedupe_by_chunk_id(overview_results + medication_results)
 
     if primary_headings:
         overview_filtered = [
-            doc for doc in overview_results
-            if doc.get("heading") in primary_headings
+            doc for doc in overview_results if doc.get("heading") in primary_headings
         ]
         if not overview_filtered:
             overview_filtered = overview_results
@@ -522,7 +529,9 @@ ONCOLOGY TIMELINE CONTEXT:
     token_stats = llm_out["token_stats"]
     cost_info = calculate_openai_cost(model, token_stats)
 
-    patient_name, patient_dob, patient_age, patient_gender = _search_patient_identity(search_type, patient_id)
+    patient_name, patient_dob, patient_age, patient_gender = _search_patient_identity(
+        search_type, patient_id
+    )
 
     return {
         "patient_id": patient_id,

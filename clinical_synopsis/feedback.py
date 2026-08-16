@@ -64,13 +64,12 @@ def save_feedback(event: dict) -> None:
                 pass
 
         try:
-            conn.execute(
-                "ALTER TABLE feedback ADD COLUMN latency_seconds REAL"
-            )
+            conn.execute("ALTER TABLE feedback ADD COLUMN latency_seconds REAL")
         except sqlite3.OperationalError:
             pass
 
-        conn.execute("""
+        conn.execute(
+            """
             INSERT INTO feedback (
                 created_at, patient_id, question, question_type,
                 search_type, model, answer,
@@ -84,31 +83,33 @@ def save_feedback(event: dict) -> None:
             VALUES (
             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
             )
-        """, (
-            datetime.now(timezone.utc).isoformat(),
-            event.get("patient_id"),
-            event.get("question"),
-            event.get("question_type"),
-            event.get("search_type"),
-            event.get("model"),
-            event.get("answer"),
-            event.get("routing_suggestion"),
-            event.get("routing_confidence"),
-            event.get("feedback_score"),
-            int(bool(event.get("accuracy_issue"))),
-            event.get("issue_type"),
-            event.get("comment"),
-            event.get("input_tokens"),
-            event.get("output_tokens"),
-            event.get("total_cost"),
-            event.get("latency_seconds"),
-            event.get("judge_relevance_score"),
-            event.get("judge_groundedness_score"),
-            event.get("judge_overall_score"),
-            event.get("judge_relevance_label"),
-            event.get("judge_groundedness_label"),
-            event.get("judge_explanation"),
-            event.get("judge_input_tokens"),
-            event.get("judge_output_tokens"),
-            event.get("judge_total_cost")
-        ))
+        """,
+            (
+                datetime.now(timezone.utc).isoformat(),
+                event.get("patient_id"),
+                event.get("question"),
+                event.get("question_type"),
+                event.get("search_type"),
+                event.get("model"),
+                event.get("answer"),
+                event.get("routing_suggestion"),
+                event.get("routing_confidence"),
+                event.get("feedback_score"),
+                int(bool(event.get("accuracy_issue"))),
+                event.get("issue_type"),
+                event.get("comment"),
+                event.get("input_tokens"),
+                event.get("output_tokens"),
+                event.get("total_cost"),
+                event.get("latency_seconds"),
+                event.get("judge_relevance_score"),
+                event.get("judge_groundedness_score"),
+                event.get("judge_overall_score"),
+                event.get("judge_relevance_label"),
+                event.get("judge_groundedness_label"),
+                event.get("judge_explanation"),
+                event.get("judge_input_tokens"),
+                event.get("judge_output_tokens"),
+                event.get("judge_total_cost"),
+            ),
+        )

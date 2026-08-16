@@ -7,6 +7,7 @@ MODULE_DIR = Path(__file__).resolve().parent
 REPO_ROOT = MODULE_DIR.parent
 DEFAULT_MODEL_PATH = REPO_ROOT / "models" / "Xenova" / "all-MiniLM-L6-v2"
 
+
 class Embedder:
     def __init__(self, path=DEFAULT_MODEL_PATH):
         path = Path(path)

@@ -14,12 +14,12 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 
-DEFAULT_FEEDBACK_DB = REPO_ROOT / "data" / "monitoring" / "clinical_synopsis_feedback.db"
+DEFAULT_FEEDBACK_DB = (
+    REPO_ROOT / "data" / "monitoring" / "clinical_synopsis_feedback.db"
+)
 DEFAULT_DERIVED_ROOT = REPO_ROOT / "data" / "derived" / "sample50"
 
-FEEDBACK_DB = Path(
-    os.getenv("CLINICAL_SYNOPSIS_FEEDBACK_DB", str(DEFAULT_FEEDBACK_DB))
-)
+FEEDBACK_DB = Path(os.getenv("CLINICAL_SYNOPSIS_FEEDBACK_DB", str(DEFAULT_FEEDBACK_DB)))
 DERIVED_ROOT = Path(
     os.getenv("CLINICAL_SYNOPSIS_DERIVED_ROOT", str(DEFAULT_DERIVED_ROOT))
 )
@@ -94,13 +94,15 @@ def load_feedback(db_path: str) -> pd.DataFrame:
         feedback["created_at"], errors="coerce", utc=True
     )
     feedback["feedback_score"] = pd.to_numeric(
-        feedback["feedback_score"], errors="coerce")
-    feedback["total_cost"] = pd.to_numeric(
-        feedback["total_cost"], errors="coerce")
+        feedback["feedback_score"], errors="coerce"
+    )
+    feedback["total_cost"] = pd.to_numeric(feedback["total_cost"], errors="coerce")
     feedback["latency_seconds"] = pd.to_numeric(
-        feedback["latency_seconds"], errors="coerce")
-    feedback["accuracy_issue"] = pd.to_numeric(
-        feedback["accuracy_issue"], errors="coerce").fillna(0).astype(int)
+        feedback["latency_seconds"], errors="coerce"
+    )
+    feedback["accuracy_issue"] = (
+        pd.to_numeric(feedback["accuracy_issue"], errors="coerce").fillna(0).astype(int)
+    )
 
     for column in [
         "judge_relevance_score",
@@ -237,9 +239,7 @@ else:
     filtered = filtered.iloc[0:0]
 
 if selected_ratings:
-    filtered = filtered[
-        filtered["feedback_score"].isin(selected_ratings)
-    ]
+    filtered = filtered[filtered["feedback_score"].isin(selected_ratings)]
 else:
     filtered = filtered.iloc[0:0]
 
@@ -255,7 +255,9 @@ elif accuracy_filter == "Not flagged":
 
 if patient_search:
     filtered = filtered[
-        filtered["patient_id"].fillna("").str.contains(
+        filtered["patient_id"]
+        .fillna("")
+        .str.contains(
             patient_search,
             case=False,
             na=False,
@@ -271,23 +273,16 @@ rated = filtered.dropna(subset=["feedback_score"])
 
 average_score = rated["feedback_score"].mean()
 low_score_count = int((rated["feedback_score"] <= 2).sum())
-low_score_rate = (
-    100 * low_score_count / len(rated)
-    if len(rated)
-    else float("nan")
-)
+low_score_rate = 100 * low_score_count / len(rated) if len(rated) else float("nan")
 accuracy_flag_count = int((filtered["accuracy_issue"] == 1).sum())
 accuracy_flag_rate = (
-    100 * accuracy_flag_count / len(filtered)
-    if len(filtered)
-    else float("nan")
+    100 * accuracy_flag_count / len(filtered) if len(filtered) else float("nan")
 )
 total_cost = filtered["total_cost"].sum(min_count=1)
 
-filtered["combined_cost"] = (
-    filtered["total_cost"].fillna(0)
-    + filtered["judge_total_cost"].fillna(0)
-)
+filtered["combined_cost"] = filtered["total_cost"].fillna(0) + filtered[
+    "judge_total_cost"
+].fillna(0)
 
 st.subheader("Quality summary")
 metric_columns = st.columns(4)
@@ -365,8 +360,7 @@ with chart_left:
     st.subheader("Feedback volume by day")
 
     daily_queries = (
-        filtered
-        .dropna(subset=["created_at"])
+        filtered.dropna(subset=["created_at"])
         .assign(date=lambda df: df["created_at"].dt.date)
         .groupby("date")
         .size()
@@ -382,8 +376,7 @@ with chart_right:
     st.subheader("Estimated cost by question type")
 
     cost_by_question_type = (
-        filtered
-        .groupby("question_type")["total_cost"]
+        filtered.groupby("question_type")["total_cost"]
         .sum()
         .sort_values(ascending=False)
         .rename("estimated_cost")
@@ -397,10 +390,7 @@ with chart_right:
 st.subheader("Token usage by retrieval method")
 
 tokens_by_search_type = (
-    filtered
-    .groupby("search_type")[["input_tokens", "output_tokens"]]
-    .sum()
-    .fillna(0)
+    filtered.groupby("search_type")[["input_tokens", "output_tokens"]].sum().fillna(0)
 )
 
 if tokens_by_search_type.empty:
@@ -412,8 +402,7 @@ st.divider()
 st.subheader("Answer-generation latency")
 
 latency_by_type = (
-    filtered
-    .dropna(subset=["latency_seconds"])
+    filtered.dropna(subset=["latency_seconds"])
     .groupby("question_type")["latency_seconds"]
     .mean()
     .sort_values(ascending=False)
@@ -451,7 +440,9 @@ st.dataframe(
     use_container_width=True,
     height=360,
     column_config={
-        "created_at": st.column_config.DatetimeColumn("Created at", format="YYYY-MM-DD HH:mm"),
+        "created_at": st.column_config.DatetimeColumn(
+            "Created at", format="YYYY-MM-DD HH:mm"
+        ),
         "feedback_score": st.column_config.NumberColumn("Score", format="%d / 5"),
         "accuracy_issue": st.column_config.CheckboxColumn("Accuracy flag"),
         "total_cost": st.column_config.NumberColumn("Cost", format="$%.6f"),
@@ -534,17 +525,11 @@ else:
         st.bar_chart(groundedness_distribution)
 
 
-comparison = judged.dropna(
-    subset=["feedback_score", "judge_overall_score"]
-).copy()
+comparison = judged.dropna(subset=["feedback_score", "judge_overall_score"]).copy()
 
-comparison["clinician_normalized"] = (
-    comparison["feedback_score"] - 1
-) / 4
+comparison["clinician_normalized"] = (comparison["feedback_score"] - 1) / 4
 
-comparison["judge_normalized"] = (
-    comparison["judge_overall_score"] / 2
-)
+comparison["judge_normalized"] = comparison["judge_overall_score"] / 2
 
 if comparison.empty:
     st.caption(
@@ -555,18 +540,15 @@ else:
     st.markdown("#### Judge versus clinician feedback")
 
     mean_absolute_gap = (
-        comparison["clinician_normalized"]
-        - comparison["judge_normalized"]
-    ).abs().mean()
+        (comparison["clinician_normalized"] - comparison["judge_normalized"])
+        .abs()
+        .mean()
+    )
 
     agreement_rate = (
-        (
-            (comparison["clinician_normalized"] >= 0.75)
-            == (comparison["judge_normalized"] >= 0.75)
-        )
-        .mean()
-        * 100
-    )
+        (comparison["clinician_normalized"] >= 0.75)
+        == (comparison["judge_normalized"] >= 0.75)
+    ).mean() * 100
 
     compare_metrics = st.columns(3)
 
@@ -590,13 +572,11 @@ else:
         ),
     )
 
-
     st.markdown("#### Disagreement cases")
 
     disagreement_cases = comparison.assign(
         score_gap=(
-            comparison["clinician_normalized"]
-            - comparison["judge_normalized"]
+            comparison["clinician_normalized"] - comparison["judge_normalized"]
         ).abs()
     ).sort_values("score_gap", ascending=False)
 
@@ -640,8 +620,6 @@ else:
     )
 
 
-
-
 st.divider()
 st.subheader("Inspect an answer")
 
@@ -679,17 +657,33 @@ with left:
 
 with right:
     st.markdown("#### Review metadata")
-    st.write(f"**Score:** {record['feedback_score'] if pd.notna(record['feedback_score']) else 'Not rated'}")
+    st.write(
+        f"**Score:** {record['feedback_score'] if pd.notna(record['feedback_score']) else 'Not rated'}"
+    )
     st.write(f"**Accuracy flagged:** {'Yes' if record['accuracy_issue'] else 'No'}")
     st.write(f"**Issue type:** {record['issue_type'] or 'Not selected'}")
     st.write(f"**Question type:** {record['question_type']}")
     st.write(f"**Router suggestion:** {record['routing_suggestion'] or 'None'}")
-    st.write(f"**Router confidence:** {record['routing_confidence'] if pd.notna(record['routing_confidence']) else 'Not recorded'}")
+    st.write(
+        f"**Router confidence:** {record['routing_confidence'] if pd.notna(record['routing_confidence']) else 'Not recorded'}"
+    )
     st.write(f"**Retrieval:** {record['search_type']}")
     st.write(f"**Model:** {record['model']}")
-    st.write(f"**Latency:** {record['latency_seconds']:.2f} seconds" if pd.notna(record["latency_seconds"]) else "**Latency:** Not recorded")
-    st.write(f"**Input tokens:** {record['input_tokens'] if pd.notna(record['input_tokens']) else 'Not recorded'}")
-    st.write(f"**Output tokens:** {record['output_tokens'] if pd.notna(record['output_tokens']) else 'Not recorded'}")
-    st.write(f"**Estimated cost:** ${record['total_cost']:.6f}" if pd.notna(record['total_cost']) else "**Estimated cost:** Not recorded")
+    st.write(
+        f"**Latency:** {record['latency_seconds']:.2f} seconds"
+        if pd.notna(record["latency_seconds"])
+        else "**Latency:** Not recorded"
+    )
+    st.write(
+        f"**Input tokens:** {record['input_tokens'] if pd.notna(record['input_tokens']) else 'Not recorded'}"
+    )
+    st.write(
+        f"**Output tokens:** {record['output_tokens'] if pd.notna(record['output_tokens']) else 'Not recorded'}"
+    )
+    st.write(
+        f"**Estimated cost:** ${record['total_cost']:.6f}"
+        if pd.notna(record["total_cost"])
+        else "**Estimated cost:** Not recorded"
+    )
 
 render_source_preview(str(record["patient_id"]), int(record["id"]))

@@ -55,20 +55,22 @@ def load_documents(db_path: Path) -> list[dict]:
 
     documents = []
     for row in rows:
-        documents.append({
-            "id": row["chunk_id"],
-            "chunk_id": row["chunk_id"],
-            "patient_id": row["patient_id"],
-            "document_id": row["document_id"],
-            "doc_type": row["doc_type"],
-            "title": row["title"] or "",
-            "heading": row["heading"] or "",
-            "chunk_text": row["chunk_text"] or "",
-            "chunk_index": row["chunk_index"],
-            "is_oncology": str(row["is_oncology"]),
-            "date_start": row["date_start"] or "",
-            "date_end": row["date_end"] or "",
-        })
+        documents.append(
+            {
+                "id": row["chunk_id"],
+                "chunk_id": row["chunk_id"],
+                "patient_id": row["patient_id"],
+                "document_id": row["document_id"],
+                "doc_type": row["doc_type"],
+                "title": row["title"] or "",
+                "heading": row["heading"] or "",
+                "chunk_text": row["chunk_text"] or "",
+                "chunk_index": row["chunk_index"],
+                "is_oncology": str(row["is_oncology"]),
+                "date_start": row["date_start"] or "",
+                "date_end": row["date_end"] or "",
+            }
+        )
 
     return documents
 
@@ -76,7 +78,7 @@ def load_documents(db_path: Path) -> list[dict]:
 def build_index(documents: list[dict]) -> Index:
     index = Index(
         text_fields=["title", "heading", "chunk_text"],
-        keyword_fields=["patient_id", "doc_type", "is_oncology"]
+        keyword_fields=["patient_id", "doc_type", "is_oncology"],
     )
     index.fit(documents)
     return index

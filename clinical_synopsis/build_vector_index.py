@@ -56,19 +56,21 @@ def load_chunk_documents(db_path=DB_PATH):
 
     documents = []
     for row in rows:
-        documents.append({
-            "chunk_id": row["chunk_id"],
-            "patient_id": row["patient_id"],
-            "document_id": row["document_id"],
-            "doc_type": row["doc_type"] or "",
-            "title": row["title"] or "",
-            "heading": row["heading"] or "",
-            "chunk_text": row["chunk_text"] or "",
-            "chunk_index": row["chunk_index"],
-            "is_oncology": int(row["is_oncology"]),
-            "date_start": row["date_start"] or "",
-            "date_end": row["date_end"] or "",
-        })
+        documents.append(
+            {
+                "chunk_id": row["chunk_id"],
+                "patient_id": row["patient_id"],
+                "document_id": row["document_id"],
+                "doc_type": row["doc_type"] or "",
+                "title": row["title"] or "",
+                "heading": row["heading"] or "",
+                "chunk_text": row["chunk_text"] or "",
+                "chunk_index": row["chunk_index"],
+                "is_oncology": int(row["is_oncology"]),
+                "date_start": row["date_start"] or "",
+                "date_end": row["date_end"] or "",
+            }
+        )
 
     return documents
 
@@ -85,7 +87,7 @@ def build_embedding_text(doc):
 
 def batch_iterable(items, batch_size):
     for start in range(0, len(items), batch_size):
-        yield items[start:start + batch_size]
+        yield items[start : start + batch_size]
 
 
 def main():

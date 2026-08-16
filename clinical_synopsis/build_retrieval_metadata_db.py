@@ -27,10 +27,25 @@ DB_PATH = Path(
 
 
 ONCOLOGY_TERMS = [
-    "cancer", "carcinoma", "tumor", "tumour", "neoplasm", "oncology",
-    "malignant", "metast", "chemo", "chemotherapy", "radiation",
-    "radiotherapy", "biopsy", "stage", "adenocarcinoma", "lymphoma",
-    "leukemia", "melanoma", "sarcoma"
+    "cancer",
+    "carcinoma",
+    "tumor",
+    "tumour",
+    "neoplasm",
+    "oncology",
+    "malignant",
+    "metast",
+    "chemo",
+    "chemotherapy",
+    "radiation",
+    "radiotherapy",
+    "biopsy",
+    "stage",
+    "adenocarcinoma",
+    "lymphoma",
+    "leukemia",
+    "melanoma",
+    "sarcoma",
 ]
 
 DATE_PATTERN = re.compile(r"\b(\d{4}-\d{2}-\d{2}(?:[T ][^;\s]+)?)\b")
@@ -117,12 +132,14 @@ def markdown_chunks(text: str, max_chars: int = 1400, overlap: int = 200) -> lis
             end = min(len(section_text), start + max_chars)
             chunk_text = section_text[start:end].strip()
             if chunk_text:
-                chunks.append({
-                    "heading": heading,
-                    "text": chunk_text,
-                    "char_start": start,
-                    "char_end": end,
-                })
+                chunks.append(
+                    {
+                        "heading": heading,
+                        "text": chunk_text,
+                        "char_start": start,
+                        "char_end": end,
+                    }
+                )
             if end >= len(section_text):
                 break
             start = max(0, end - overlap)
@@ -143,18 +160,22 @@ def csv_row_chunks(path: Path) -> list[dict]:
             chunk_text = "; ".join(text_parts).strip()
             if not chunk_text:
                 continue
-            chunks.append({
-                "heading": path.stem,
-                "text": chunk_text,
-                "char_start": 0,
-                "char_end": len(chunk_text),
-                "row": row,
-                "row_index": idx,
-            })
+            chunks.append(
+                {
+                    "heading": path.stem,
+                    "text": chunk_text,
+                    "char_start": 0,
+                    "char_end": len(chunk_text),
+                    "row": row,
+                    "row_index": idx,
+                }
+            )
     return chunks
 
 
-def extract_sources_from_csv_row(row: dict) -> list[tuple[str | None, str | None, str | None]]:
+def extract_sources_from_csv_row(
+    row: dict,
+) -> list[tuple[str | None, str | None, str | None]]:
     resource_id = normalize_text(row.get("resource_id"))
     source_file = normalize_text(row.get("source_file"))
     resource_type = normalize_text(row.get("resource_type"))
@@ -241,14 +262,26 @@ def ingest_document(conn: sqlite3.Connection, patient_id: str, path: Path):
         date_start, date_end = None, None
         title = path.name
 
-    conn.execute("""
+    conn.execute(
+        """
         INSERT OR REPLACE INTO documents
         (document_id, patient_id, doc_type, file_path, source_file, title, format, created_at, is_oncology, date_start, date_end)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        document_id, patient_id, doc_type, str(path), None, title, fmt, created_at,
-        is_oncology, date_start, date_end
-    ))
+    """,
+        (
+            document_id,
+            patient_id,
+            doc_type,
+            str(path),
+            None,
+            title,
+            fmt,
+            created_at,
+            is_oncology,
+            date_start,
+            date_end,
+        ),
+    )
 
     if path.suffix.lower() == ".md":
         chunks = markdown_chunks(text)
@@ -258,17 +291,28 @@ def ingest_document(conn: sqlite3.Connection, patient_id: str, path: Path):
             c_date_start, c_date_end = extract_dates(chunk_text)
             c_oncology = 1 if is_oncology_text(chunk_text) or is_oncology else 0
 
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT OR REPLACE INTO chunks
                 (chunk_id, document_id, patient_id, chunk_index, chunk_text, char_start, char_end,
                  token_estimate, heading, is_oncology, date_start, date_end)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                chunk_id, document_id, patient_id, idx, chunk_text,
-                chunk["char_start"], chunk["char_end"],
-                estimate_tokens(chunk_text), chunk["heading"], c_oncology,
-                c_date_start, c_date_end
-            ))
+            """,
+                (
+                    chunk_id,
+                    document_id,
+                    patient_id,
+                    idx,
+                    chunk_text,
+                    chunk["char_start"],
+                    chunk["char_end"],
+                    estimate_tokens(chunk_text),
+                    chunk["heading"],
+                    c_oncology,
+                    c_date_start,
+                    c_date_end,
+                ),
+            )
 
     elif path.suffix.lower() == ".csv":
         chunks = csv_row_chunks(path)
@@ -279,24 +323,40 @@ def ingest_document(conn: sqlite3.Connection, patient_id: str, path: Path):
             c_date_start, c_date_end = extract_dates(chunk_text)
             c_oncology = 1 if is_oncology_text(chunk_text) or is_oncology else 0
 
-            conn.execute("""
+            conn.execute(
+                """
                 INSERT OR REPLACE INTO chunks
                 (chunk_id, document_id, patient_id, chunk_index, chunk_text, char_start, char_end,
                  token_estimate, heading, is_oncology, date_start, date_end)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                chunk_id, document_id, patient_id, idx, chunk_text,
-                chunk["char_start"], chunk["char_end"],
-                estimate_tokens(chunk_text), chunk["heading"], c_oncology,
-                c_date_start, c_date_end
-            ))
+            """,
+                (
+                    chunk_id,
+                    document_id,
+                    patient_id,
+                    idx,
+                    chunk_text,
+                    chunk["char_start"],
+                    chunk["char_end"],
+                    estimate_tokens(chunk_text),
+                    chunk["heading"],
+                    c_oncology,
+                    c_date_start,
+                    c_date_end,
+                ),
+            )
 
-            for resource_id, resource_type, source_file in extract_sources_from_csv_row(row):
-                conn.execute("""
+            for resource_id, resource_type, source_file in extract_sources_from_csv_row(
+                row
+            ):
+                conn.execute(
+                    """
                     INSERT OR REPLACE INTO chunk_sources
                     (chunk_id, resource_id, resource_type, source_file)
                     VALUES (?, ?, ?, ?)
-                """, (chunk_id, resource_id, resource_type, source_file))
+                """,
+                    (chunk_id, resource_id, resource_type, source_file),
+                )
 
 
 def main():
@@ -324,7 +384,9 @@ def main():
 
     for patient_dir in patient_dirs:
         patient_id = patient_dir.name
-        conn.execute("INSERT OR IGNORE INTO patients (patient_id) VALUES (?)", (patient_id,))
+        conn.execute(
+            "INSERT OR IGNORE INTO patients (patient_id) VALUES (?)", (patient_id,)
+        )
 
         for path in sorted(patient_dir.iterdir()):
             if path.is_file() and path.suffix.lower() in {".md", ".csv"}:

@@ -10,10 +10,25 @@ OUTPUT_ROOT = Path("data/derived/sample50")
 
 
 ONCOLOGY_TERMS = [
-    "cancer", "carcinoma", "tumor", "tumour", "neoplasm", "oncology",
-    "malignant", "metast", "chemo", "chemotherapy", "radiation",
-    "radiotherapy", "biopsy", "stage", "adenocarcinoma", "lymphoma",
-    "leukemia", "melanoma", "sarcoma"
+    "cancer",
+    "carcinoma",
+    "tumor",
+    "tumour",
+    "neoplasm",
+    "oncology",
+    "malignant",
+    "metast",
+    "chemo",
+    "chemotherapy",
+    "radiation",
+    "radiotherapy",
+    "biopsy",
+    "stage",
+    "adenocarcinoma",
+    "lymphoma",
+    "leukemia",
+    "melanoma",
+    "sarcoma",
 ]
 
 
@@ -76,7 +91,9 @@ def sort_by_date(df: pd.DataFrame, date_cols: list[str]) -> pd.DataFrame:
             break
     if chosen_col is None:
         df["_sort_date"] = pd.NaT
-    return df.sort_values("_sort_date", ascending=False, na_position="last").drop(columns=["_sort_date"])
+    return df.sort_values("_sort_date", ascending=False, na_position="last").drop(
+        columns=["_sort_date"]
+    )
 
 
 def write_csv_if_needed(df: pd.DataFrame, path: Path, always_write: bool = False):
@@ -107,11 +124,15 @@ def summarize_conditions(df: pd.DataFrame, limit: int = 10) -> list[str]:
 def summarize_meds(df: pd.DataFrame, limit: int = 10) -> list[str]:
     if not has_rows(df):
         return []
-    df2 = sort_by_date(df, ["authored_on", "effective_datetime", "effective_period_start"])
+    df2 = sort_by_date(
+        df, ["authored_on", "effective_datetime", "effective_period_start"]
+    )
     lines = []
     for _, row in df2.head(limit).iterrows():
         label = first_nonempty(row, ["display", "text", "code"])
-        when = first_nonempty(row, ["authored_on", "effective_datetime", "effective_period_start"])
+        when = first_nonempty(
+            row, ["authored_on", "effective_datetime", "effective_period_start"]
+        )
         status = first_nonempty(row, ["status", "intent"])
         if label:
             parts = [label]
@@ -155,7 +176,9 @@ def summarize_encounters(df: pd.DataFrame, limit: int = 8) -> list[str]:
     df2 = sort_by_date(df, ["period_start", "period_end"])
     lines = []
     for _, row in df2.head(limit).iterrows():
-        label = first_nonempty(row, ["encounter_type_display", "encounter_type_code", "encounter_class"])
+        label = first_nonempty(
+            row, ["encounter_type_display", "encounter_type_code", "encounter_class"]
+        )
         start = first_nonempty(row, ["period_start"])
         end = first_nonempty(row, ["period_end"])
         provider = first_nonempty(row, ["service_provider"])
@@ -240,7 +263,9 @@ def build_overview_md(
 
     lines.append("## Recent Conditions")
     condition_lines = summarize_conditions(conditions_df)
-    lines.extend(condition_lines if condition_lines else ["- No condition records found."])
+    lines.extend(
+        condition_lines if condition_lines else ["- No condition records found."]
+    )
     lines.append("")
 
     lines.append("## Recent Results")
@@ -255,22 +280,34 @@ def build_overview_md(
 
     if has_rows(meds_df):
         lines.append("## Medications")
-        lines.extend(summarize_meds(meds_df) or ["- Medication data present but not summarized."])
+        lines.extend(
+            summarize_meds(meds_df) or ["- Medication data present but not summarized."]
+        )
         lines.append("")
 
     if has_rows(procedures_df):
         lines.append("## Procedures")
-        lines.extend(summarize_procedures(procedures_df) or ["- Procedure data present but not summarized."])
+        lines.extend(
+            summarize_procedures(procedures_df)
+            or ["- Procedure data present but not summarized."]
+        )
         lines.append("")
 
     if has_rows(reports_df):
         lines.append("## Diagnostic Reports")
-        lines.extend(summarize_reports(reports_df) or ["- Diagnostic report data present but not summarized."])
+        lines.extend(
+            summarize_reports(reports_df)
+            or ["- Diagnostic report data present but not summarized."]
+        )
         lines.append("")
 
     lines.append("## Provenance")
-    lines.append("- This document is derived from normalized CSV tables in the same patient folder.")
-    lines.append("- Use the `source_file` and `resource_id` columns in CSV files to trace facts back to the original FHIR bundle.")
+    lines.append(
+        "- This document is derived from normalized CSV tables in the same patient folder."
+    )
+    lines.append(
+        "- Use the `source_file` and `resource_id` columns in CSV files to trace facts back to the original FHIR bundle."
+    )
 
     return "\n".join(lines).strip() + "\n"
 
@@ -285,82 +322,111 @@ def collect_oncology_events(
     events = []
 
     for _, row in conditions_df.iterrows() if has_rows(conditions_df) else []:
-        text = " ".join([
-            first_nonempty(row, ["display", "text", "code"]),
-            first_nonempty(row, ["clinical_status"]),
-        ])
+        text = " ".join(
+            [
+                first_nonempty(row, ["display", "text", "code"]),
+                first_nonempty(row, ["clinical_status"]),
+            ]
+        )
         if text_matches_oncology(text):
-            events.append({
-                "event_type": "Condition",
-                "date": first_nonempty(row, ["recorded_date", "onset_datetime"]),
-                "label": first_nonempty(row, ["display", "text", "code"]),
-                "status": first_nonempty(row, ["clinical_status", "verification_status"]),
-                "resource_id": first_nonempty(row, ["resource_id"]),
-                "source_file": first_nonempty(row, ["source_file"]),
-            })
+            events.append(
+                {
+                    "event_type": "Condition",
+                    "date": first_nonempty(row, ["recorded_date", "onset_datetime"]),
+                    "label": first_nonempty(row, ["display", "text", "code"]),
+                    "status": first_nonempty(
+                        row, ["clinical_status", "verification_status"]
+                    ),
+                    "resource_id": first_nonempty(row, ["resource_id"]),
+                    "source_file": first_nonempty(row, ["source_file"]),
+                }
+            )
 
     for _, row in observations_df.iterrows() if has_rows(observations_df) else []:
-        text = " ".join([
-            first_nonempty(row, ["display", "text", "code"]),
-            first_nonempty(row, ["value_display", "value_string", "value_code"]),
-        ])
+        text = " ".join(
+            [
+                first_nonempty(row, ["display", "text", "code"]),
+                first_nonempty(row, ["value_display", "value_string", "value_code"]),
+            ]
+        )
         if text_matches_oncology(text):
-            value_text = first_nonempty(row, ["value_display", "value_string", "value_code"])
+            value_text = first_nonempty(
+                row, ["value_display", "value_string", "value_code"]
+            )
             if normalize_text(row.get("value_numeric")):
                 value_text = f"{normalize_text(row.get('value_numeric'))} {normalize_text(row.get('value_unit'))}".strip()
-            events.append({
-                "event_type": "Observation",
-                "date": first_nonempty(row, ["effective_datetime", "issued"]),
-                "label": first_nonempty(row, ["display", "text", "code"]),
-                "status": value_text,
-                "resource_id": first_nonempty(row, ["resource_id"]),
-                "source_file": first_nonempty(row, ["source_file"]),
-            })
+            events.append(
+                {
+                    "event_type": "Observation",
+                    "date": first_nonempty(row, ["effective_datetime", "issued"]),
+                    "label": first_nonempty(row, ["display", "text", "code"]),
+                    "status": value_text,
+                    "resource_id": first_nonempty(row, ["resource_id"]),
+                    "source_file": first_nonempty(row, ["source_file"]),
+                }
+            )
 
     for _, row in meds_df.iterrows() if has_rows(meds_df) else []:
         text = first_nonempty(row, ["display", "text", "code"])
         if text_matches_oncology(text):
-            events.append({
-                "event_type": "Medication",
-                "date": first_nonempty(row, ["authored_on", "effective_datetime", "effective_period_start"]),
-                "label": text,
-                "status": first_nonempty(row, ["status", "intent"]),
-                "resource_id": first_nonempty(row, ["resource_id"]),
-                "source_file": first_nonempty(row, ["source_file"]),
-            })
+            events.append(
+                {
+                    "event_type": "Medication",
+                    "date": first_nonempty(
+                        row,
+                        ["authored_on", "effective_datetime", "effective_period_start"],
+                    ),
+                    "label": text,
+                    "status": first_nonempty(row, ["status", "intent"]),
+                    "resource_id": first_nonempty(row, ["resource_id"]),
+                    "source_file": first_nonempty(row, ["source_file"]),
+                }
+            )
 
     for _, row in procedures_df.iterrows() if has_rows(procedures_df) else []:
         text = first_nonempty(row, ["display", "text", "code"])
         if text_matches_oncology(text):
-            events.append({
-                "event_type": "Procedure",
-                "date": first_nonempty(row, ["performed_datetime", "performed_period_start"]),
-                "label": text,
-                "status": first_nonempty(row, ["status"]),
-                "resource_id": first_nonempty(row, ["resource_id"]),
-                "source_file": first_nonempty(row, ["source_file"]),
-            })
+            events.append(
+                {
+                    "event_type": "Procedure",
+                    "date": first_nonempty(
+                        row, ["performed_datetime", "performed_period_start"]
+                    ),
+                    "label": text,
+                    "status": first_nonempty(row, ["status"]),
+                    "resource_id": first_nonempty(row, ["resource_id"]),
+                    "source_file": first_nonempty(row, ["source_file"]),
+                }
+            )
 
     for _, row in reports_df.iterrows() if has_rows(reports_df) else []:
         text = first_nonempty(row, ["display", "text", "code"])
         if text_matches_oncology(text):
-            events.append({
-                "event_type": "DiagnosticReport",
-                "date": first_nonempty(row, ["effective_datetime", "issued"]),
-                "label": text,
-                "status": first_nonempty(row, ["status"]),
-                "resource_id": first_nonempty(row, ["resource_id"]),
-                "source_file": first_nonempty(row, ["source_file"]),
-            })
+            events.append(
+                {
+                    "event_type": "DiagnosticReport",
+                    "date": first_nonempty(row, ["effective_datetime", "issued"]),
+                    "label": text,
+                    "status": first_nonempty(row, ["status"]),
+                    "resource_id": first_nonempty(row, ["resource_id"]),
+                    "source_file": first_nonempty(row, ["source_file"]),
+                }
+            )
 
     events_df = pd.DataFrame(events)
     if not events_df.empty:
-        events_df["_sort_date"] = pd.to_datetime(events_df["date"], errors="coerce", utc=True)
-        events_df = events_df.sort_values("_sort_date", ascending=True, na_position="last").drop(columns=["_sort_date"])
+        events_df["_sort_date"] = pd.to_datetime(
+            events_df["date"], errors="coerce", utc=True
+        )
+        events_df = events_df.sort_values(
+            "_sort_date", ascending=True, na_position="last"
+        ).drop(columns=["_sort_date"])
     return events_df
 
 
-def build_oncology_timeline_md(patient_id: str, patient_name: str, events_df: pd.DataFrame) -> str:
+def build_oncology_timeline_md(
+    patient_id: str, patient_name: str, events_df: pd.DataFrame
+) -> str:
     lines = []
     lines.append(f"# Oncology Timeline: {patient_name}")
     lines.append("")
@@ -375,13 +441,21 @@ def build_oncology_timeline_md(patient_id: str, patient_name: str, events_df: pd
         status = first_nonempty(row, ["status"])
         resource_id = first_nonempty(row, ["resource_id"])
         if status:
-            lines.append(f"- {date} — {event_type}: {label}; detail: {status}; resource_id: {resource_id}")
+            lines.append(
+                f"- {date} — {event_type}: {label}; detail: {status}; resource_id: {resource_id}"
+            )
         else:
-            lines.append(f"- {date} — {event_type}: {label}; resource_id: {resource_id}")
+            lines.append(
+                f"- {date} — {event_type}: {label}; resource_id: {resource_id}"
+            )
     lines.append("")
     lines.append("## Provenance")
-    lines.append("- Each timeline event was selected from normalized source tables by keyword matching.")
-    lines.append("- Confirm clinical relevance against the original CSV rows before downstream use.")
+    lines.append(
+        "- Each timeline event was selected from normalized source tables by keyword matching."
+    )
+    lines.append(
+        "- Confirm clinical relevance against the original CSV rows before downstream use."
+    )
     return "\n".join(lines).strip() + "\n"
 
 
@@ -409,8 +483,12 @@ def combine_medications(
         return pd.DataFrame()
 
     combined = pd.concat(frames, ignore_index=True, sort=False)
-    combined["_sort_date"] = pd.to_datetime(combined["event_date"], errors="coerce", utc=True)
-    combined = combined.sort_values("_sort_date", ascending=False, na_position="last").drop(columns=["_sort_date"])
+    combined["_sort_date"] = pd.to_datetime(
+        combined["event_date"], errors="coerce", utc=True
+    )
+    combined = combined.sort_values(
+        "_sort_date", ascending=False, na_position="last"
+    ).drop(columns=["_sort_date"])
     return combined
 
 
@@ -429,13 +507,19 @@ def generate_for_patient(patient_dir: Path) -> dict:
     reports_df = safe_read_csv(patient_dir / "diagnostic_reports.csv")
 
     metadata_path = patient_dir / "bundle_metadata.json"
-    metadata = json.loads(metadata_path.read_text(encoding="utf-8")) if metadata_path.exists() else {}
+    metadata = (
+        json.loads(metadata_path.read_text(encoding="utf-8"))
+        if metadata_path.exists()
+        else {}
+    )
 
     meds_df = combine_medications(med_req_df, med_admin_df)
 
     write_csv_if_needed(encounters_df, out_dir / "encounters.csv", always_write=True)
     write_csv_if_needed(conditions_df, out_dir / "conditions.csv", always_write=True)
-    write_csv_if_needed(observations_df, out_dir / "observations.csv", always_write=True)
+    write_csv_if_needed(
+        observations_df, out_dir / "observations.csv", always_write=True
+    )
 
     if has_rows(meds_df):
         write_csv_if_needed(meds_df, out_dir / "medications.csv")
@@ -467,13 +551,23 @@ def generate_for_patient(patient_dir: Path) -> dict:
         procedures_df=procedures_df,
         reports_df=reports_df,
     )
-    oncology_events_dated = oncology_events_df[oncology_events_df["date"].fillna("").astype(str).str.len() > 0] if not oncology_events_df.empty else oncology_events_df
+    oncology_events_dated = (
+        oncology_events_df[
+            oncology_events_df["date"].fillna("").astype(str).str.len() > 0
+        ]
+        if not oncology_events_df.empty
+        else oncology_events_df
+    )
 
     created_timeline = False
     if len(oncology_events_dated) >= 3:
-        timeline_md = build_oncology_timeline_md(patient_id, patient_name, oncology_events_dated)
+        timeline_md = build_oncology_timeline_md(
+            patient_id, patient_name, oncology_events_dated
+        )
         (out_dir / "oncology_timeline.md").write_text(timeline_md, encoding="utf-8")
-        oncology_events_dated.to_csv(out_dir / "oncology_timeline_events.csv", index=False)
+        oncology_events_dated.to_csv(
+            out_dir / "oncology_timeline_events.csv", index=False
+        )
         created_timeline = True
 
     manifest = {
@@ -490,7 +584,9 @@ def generate_for_patient(patient_dir: Path) -> dict:
         },
         "created_oncology_timeline": created_timeline,
     }
-    (out_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    (out_dir / "manifest.json").write_text(
+        json.dumps(manifest, indent=2), encoding="utf-8"
+    )
     return manifest
 
 
@@ -511,9 +607,13 @@ def main():
     totals = {
         "patients_processed": len(manifests),
         "patient_overviews": len(manifests),
-        "oncology_timelines": sum(1 for m in manifests if m["created_oncology_timeline"]),
+        "oncology_timelines": sum(
+            1 for m in manifests if m["created_oncology_timeline"]
+        ),
     }
-    (OUTPUT_ROOT / "run_summary.json").write_text(json.dumps(totals, indent=2), encoding="utf-8")
+    (OUTPUT_ROOT / "run_summary.json").write_text(
+        json.dumps(totals, indent=2), encoding="utf-8"
+    )
 
     print(f"Processed {len(manifests)} patients into {OUTPUT_ROOT}")
 

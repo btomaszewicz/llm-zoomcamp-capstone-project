@@ -18,9 +18,17 @@ RESOURCE_TYPES_DATE_FIELDS = {
     "Encounter": [("period", "start"), ("period", "end")],
     "Observation": [("effectiveDateTime",), ("issued",)],
     "Condition": [("onsetDateTime",), ("abatementDateTime",), ("recordedDate",)],
-    "Procedure": [("performedDateTime",), ("performedPeriod", "start"), ("performedPeriod", "end")],
+    "Procedure": [
+        ("performedDateTime",),
+        ("performedPeriod", "start"),
+        ("performedPeriod", "end"),
+    ],
     "MedicationRequest": [("authoredOn",)],
-    "MedicationAdministration": [("effectiveDateTime",), ("effectivePeriod", "start"), ("effectivePeriod", "end")],
+    "MedicationAdministration": [
+        ("effectiveDateTime",),
+        ("effectivePeriod", "start"),
+        ("effectivePeriod", "end"),
+    ],
     "DiagnosticReport": [("effectiveDateTime",), ("issued",)],
 }
 
@@ -93,6 +101,7 @@ def extract_patient_info(entries: list[dict]) -> tuple[str | None, str | None]:
                 patient_name = None
             return patient_id, patient_name
     return None, None
+
 
 # filter for bundles that include only patient info, not practitioner or hospital info from mCode
 def load_bundle(file_path: Path) -> dict:
@@ -226,7 +235,9 @@ def stratified_sample(
         extra = remaining_df.loc[remaining_indices[: n_total - len(sampled)]]
         sampled = pd.concat([sampled, extra])
 
-    return sampled.sort_values(["complexity_bucket", "complexity_score", "filename"]).reset_index(drop=True)
+    return sampled.sort_values(
+        ["complexity_bucket", "complexity_score", "filename"]
+    ).reset_index(drop=True)
 
 
 def main():
@@ -274,7 +285,13 @@ def main():
     print(sample_df["complexity_bucket"].value_counts(dropna=False).to_string())
     print()
     print("Example sampled files:")
-    print(sample_df[["filename", "complexity_bucket", "complexity_score", "followup_days"]].head(10).to_string(index=False))
+    print(
+        sample_df[
+            ["filename", "complexity_bucket", "complexity_score", "followup_days"]
+        ]
+        .head(10)
+        .to_string(index=False)
+    )
 
 
 if __name__ == "__main__":

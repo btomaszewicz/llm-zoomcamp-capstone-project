@@ -30,13 +30,15 @@ chunk_text: {chunk_text}
 """.strip()
 
 
-@lru_cache(maxsize=1) # this caches the loaded index to avoid reloading it multiple times
+@lru_cache(
+    maxsize=1
+)  # this caches the loaded index to avoid reloading it multiple times
 def load_index(index_path: Path = INDEX_PATH):
     with open(index_path, "rb") as f:
         return pickle.load(f)
 
 
-@lru_cache(maxsize=1) 
+@lru_cache(maxsize=1)
 def load_vector_index():
     data = np.load(VECTOR_INDEX_PATH, allow_pickle=True)
     with open(VECTOR_METADATA_PATH, "r", encoding="utf-8") as f:
@@ -52,7 +54,7 @@ def load_vector_index():
     return embeddings, ordered_docs
 
 
-@lru_cache(maxsize=1) 
+@lru_cache(maxsize=1)
 def load_embedder():
     return Embedder()
 
@@ -83,7 +85,9 @@ def search(query, patient_id=None, doc_types=None, is_oncology=None, num_results
     )
 
 
-def semantic_search(query, patient_id=None, doc_types=None, is_oncology=None, num_results=5):
+def semantic_search(
+    query, patient_id=None, doc_types=None, is_oncology=None, num_results=5
+):
     query_vector = load_embedder().encode(query, normalize=True)
     embeddings, vector_documents = load_vector_index()
     scores = embeddings @ query_vector
@@ -94,11 +98,15 @@ def semantic_search(query, patient_id=None, doc_types=None, is_oncology=None, nu
             continue
 
         if doc_types is not None:
-            allowed_doc_types = {doc_types} if isinstance(doc_types, str) else set(doc_types)
+            allowed_doc_types = (
+                {doc_types} if isinstance(doc_types, str) else set(doc_types)
+            )
             if doc.get("doc_type") not in allowed_doc_types:
                 continue
 
-        if is_oncology is not None and int(doc.get("is_oncology", 0)) != int(bool(is_oncology)):
+        if is_oncology is not None and int(doc.get("is_oncology", 0)) != int(
+            bool(is_oncology)
+        ):
             continue
 
         doc_with_score = dict(doc)
@@ -130,7 +138,9 @@ def rrf(result_lists, k=60, num_results=5):
     return fused
 
 
-def hybrid_search(query, patient_id=None, doc_types=None, is_oncology=None, num_results=5, rrf_k=60):
+def hybrid_search(
+    query, patient_id=None, doc_types=None, is_oncology=None, num_results=5, rrf_k=60
+):
     lexical_results = search(
         query=query,
         patient_id=patient_id,
