@@ -1042,6 +1042,10 @@ dependencies = [
     { name = "minsearch" },
     { name = "numpy" },
     { name = "onnxruntime" },
+    { name = "openai" },
+    { name = "pandas" },
+    { name = "pydantic" },
+    { name = "python-dotenv" },
     { name = "streamlit" },
     { name = "tokenizers" },
     { name = "tqdm" },
@@ -1051,10 +1055,6 @@ dependencies = [
 dev = [
     { name = "huggingface-hub" },
     { name = "jupyter" },
-    { name = "openai" },
-    { name = "pandas" },
-    { name = "pydantic" },
-    { name = "python-dotenv" },
 ]
 
 [package.metadata]
@@ -1063,6 +1063,10 @@ requires-dist = [
     { name = "minsearch", specifier = ">=0.2.0" },
     { name = "numpy", specifier = ">=2.5.1" },
     { name = "onnxruntime", specifier = ">=1.27.0" },
+    { name = "openai", specifier = ">=2.47.0" },
+    { name = "pandas", specifier = ">=3.0.5" },
+    { name = "pydantic", specifier = ">=2.13.4" },
+    { name = "python-dotenv", specifier = ">=1.2.2" },
     { name = "streamlit", specifier = ">=1.61.1" },
     { name = "tokenizers", specifier = ">=0.23.1" },
     { name = "tqdm", specifier = ">=4.69.0" },
@@ -1072,10 +1076,6 @@ requires-dist = [
 dev = [
     { name = "huggingface-hub", specifier = ">=1.24.0" },
     { name = "jupyter", specifier = ">=1.1.1" },
-    { name = "openai", specifier = ">=2.47.0" },
-    { name = "pandas", specifier = ">=3.0.5" },
-    { name = "pydantic", specifier = ">=2.13.4" },
-    { name = "python-dotenv", specifier = ">=1.2.2" },
 ]
 
 [[package]]

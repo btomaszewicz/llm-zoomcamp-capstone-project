@@ -9,17 +9,17 @@ dependencies = [
     "minsearch>=0.2.0",
     "numpy>=2.5.1",
     "onnxruntime>=1.27.0",
+    "openai>=2.47.0",
+    "pandas>=3.0.5",
     "streamlit>=1.61.1",
+    "pydantic>=2.13.4",
+    "python-dotenv>=1.2.2",
     "tokenizers>=0.23.1",
-    "tqdm>=4.69.0",
+    "tqdm>=4.69.0"
 ]
 
 [dependency-groups]
 dev = [
     "huggingface-hub>=1.24.0",
-    "jupyter>=1.1.1",
-    "openai>=2.47.0",
-    "pandas>=3.0.5",
-    "pydantic>=2.13.4",
-    "python-dotenv>=1.2.2",
+    "jupyter>=1.1.1"
 ]
