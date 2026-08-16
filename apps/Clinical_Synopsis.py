@@ -167,7 +167,7 @@ with st.sidebar:
     model = st.selectbox("Model", options=["gpt-5.4-mini"], index=0)
 
 question = st.text_area(
-    "Question",
+    "Ask a clinical question",
     placeholder="For example: Provide an overview of this patient's medical background and current status.",
     height=110,
 )
