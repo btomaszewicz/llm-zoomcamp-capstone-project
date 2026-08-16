@@ -1,18 +1,6 @@
 # NOTES
 
-Where do I add AI use?
-
-Say what the scope is and what it cannot do
-Chart of Architecture? description of "Request flow"? E.g. "3. The query router identifies conversation, knowledge, pricing, schedule, or availability intent."
-
-STACK
-Language	Python 3.12+
-Web interface	Streamlit
-API	Flask???????
-
-Project structure
-
-Data source
+add
 
 Something like "Evaluation criteria and rubric evidence: This table maps the course rubric directly to repository evidence so reviewers do not need to infer where each requirement is implemented."
 
@@ -270,7 +258,11 @@ application for producing clinician-facing patient synopses from structured
 and text-based patient records.
 
 You'll need to set `OPENAI_API_KEY` with a valid OpenAPI Key in your environment 
-for the project to run.
+for the project to run. Set it with:
+
+```bash
+export OPENAI_API_KEY=<your API key>
+```
 
 ### Software environment
 

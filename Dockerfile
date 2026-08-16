@@ -17,7 +17,6 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --locked --no-install-project
 
 # Copy application source and fixed runtime artifacts.
-COPY main.py ./
 COPY apps ./apps
 COPY clinical_synopsis ./clinical_synopsis
 COPY models ./models

@@ -12,7 +12,8 @@ wheels/
 .env
 
 # Models
-
-data/
+data/*
+!data/derived
+!data/retrieval
 
 .DS_Store
