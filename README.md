@@ -41,13 +41,6 @@ The challenge is therefore not only retrieving individual records. It is produci
 
 ## Solution
 
-How the application works:
-synthetic patient selection → question routing → retrieval → answer generation
-→ evidence preview → optional clinician feedback.
-
-
-## Solution
-
 Clinical Synopsis converts selected structured synthetic patient records into a searchable patient corpus with document metadata. Users select a synthetic patient and ask a clinical question in natural language.
 
 The application then:
@@ -67,6 +60,17 @@ Human review remains necessary because automated evaluation alone cannot establi
 
 Screenshot or short GIF of the Streamlit application.
 
+
+## Data and knowledge base
+
+The source dataset is the original synthetic mCODE/Synthea data; the knowledge base is the processed, chunked, metadata-enriched, and indexed patient corpus that the RAG system searches.
+
+The project uses a selected sample of 50 synthetic breast-cancer patient records from the mCODE STU2 lifetime/longitudinal dataset. The original FHIR resources are transformed into derived patient-level Markdown and CSV records representing encounters, conditions, medications, procedures, diagnostic reports, and oncology-related timelines.
+
+The derived records are split into chunks and stored with metadata including patient ID, document type, section heading, date range, and oncology flag. The same chunk metadata supports both a MinSearch lexical index and a local sentence-transformer vector index for semantic retrieval.
+
+
+
 ### MY INTERFACE FLOW / Summary of the demo
 Clinical Synopsis
 Generate clinical summaries with supporting evidence from available patient records.
@@ -78,6 +82,18 @@ Question type
 [ Router suggestion with optional override ]
 
 [ Generate synopsis ]
+
+
+
+**Request flow**
+1. The user asks a question in the app.
+2. The router chooses a question type or asks for clarification.
+3. `rag_service` picks the corresponding prompt mode and retrieval scope from config.py.
+4. retrieval.py fetches relevant chunks from the lexical, semantic, or hybrid index.
+5. `build_context` formats those chunks into a prompt context.
+6. The LLM generates the answer.
+7. The judge evaluates grounding and relevance against the retrieved context.
+
 
 ## Features
 
