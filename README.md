@@ -113,7 +113,7 @@ Question type
 
 ## Architecture
 
-![Clinical Synopsis architecture](images/clinical-synopsis-architecture.png)
+![Clinical Synopsis architecture](images/clinical_synopsis_architecture.png)
 
 ## Quick start
 
