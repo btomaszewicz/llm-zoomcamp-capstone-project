@@ -226,13 +226,51 @@ Python, Streamlit, OpenAI API, Chroma/your vector store, Pandas, SQLite, uv.
 
 
 
-# CONTAINERIZATION
+# CONTAINERIZATION 
+(2)
+## Run with Docker
+
+The Docker image includes the Streamlit application, locked Python
+dependencies, embedding-model files, retrieval artifacts in
+`data/retrieval/`, and source documents in `data/derived/`.
+
+### Prerequisites
+
+- Docker Desktop
+- An OpenAI API key
+
+### Build
+
+From the repository root:
+
+```bash
+docker build -t clinical-synopsis:local .
+```
+
+### Run
+
+```bash
+docker run --rm \
+  -p 8501:8501 \
+  -e OPENAI_API_KEY \
+  clinical-synopsis:local
+```
+
+Open http://localhost:8501 in a browser.
+
+The API key is supplied at runtime and is not stored in the Docker image or
+repository.
+
+(1)
 
 ## Reproducibility
 
 This repository contains a Streamlit-based retrieval-augmented generation
 application for producing clinician-facing patient synopses from structured
 and text-based patient records.
+
+You'll need to set `OPENAI_API_KEY` with a valid OpenAPI Key in your environment 
+for the project to run.
 
 ### Software environment
 
@@ -248,6 +286,13 @@ uv run streamlit run clinical_synopsis/app.py
 ```
 
 ### Containerized execution
+
+If you have docker-compose, run:
+
+```bash
+docker compose up
+```
+
 
 A Dockerfile is provided to run the application in an isolated environment.
 Build the image from the repository root:

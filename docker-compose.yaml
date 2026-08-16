@@ -1,0 +1,15 @@
+services:
+  clinical-synopsis:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: clinical-synopsis:local
+    ports:
+      - "8501:8501"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    volumes:
+      - ./data/monitoring:/app/data/monitoring
+      - ./data/retrieval:/app/data/retrieval:ro
+      - ./data/derived:/app/data/derived:ro
+    restart: unless-stopped

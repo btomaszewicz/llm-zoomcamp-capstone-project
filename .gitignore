@@ -15,3 +15,5 @@ wheels/
 
 models/
 data/
+
+.DS_Store
