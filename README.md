@@ -83,9 +83,7 @@ The semi-automated knowledge-base ingestion workflow is documented in
 
 ![Clinical Synopsis architecture](images/clinical_synopsis_architecture.png)
 
-## Quick start
 
-Exact `uv` commands to install and run the app.
 
 ## Retrieval and LLM evaluation
 
@@ -179,137 +177,79 @@ Two histograms in this section:
 
 ## Repository structure
 
-Brief explanation of the main folders.
+- **Root:** README.md — project overview, run instructions, and demo.
+- **Entry scripts:** Clinical_Synopsis.py — Streamlit UI and user interaction.
+- **Core package:** clinical_synopsis — RAG logic and helpers.
+- **Core files:** rag_service.py — RAG orchestration and prompt modes; retrieval.py — lexical/semantic/hybrid search; feedback.py — feedback persistence/monitoring; embedder.py — local embedder; config.py — runtime config and modes.
+- **Indexing & build scripts:** build_minsearch_index.py, build_vector_index.py, build_retrieval_metadata_db.py.
+- **Data & artifacts:** data — ingestion outputs and runtime artifacts.
+    - **Derived data:** derived — processed patient records.
+    - **Retrieval artifacts:** retrieval — `minsearch_index.pkl`, `minsearch_documents.json`, `vector_index.npz`, `vector_index_metadata.json`.
+- **Monitoring:** monitoring — monitoring SQLite DB and feedback records.
+- **Models:** all-MiniLM-L6-v2 — local embedding model files (ONNX/weights).
+- **Notebooks:** 01_prepare_derived_patient_records.ipynb, 02_build_knowledge_base.ipynb, 04_evaluate_retrieval_prompt_routing.ipynb — ingestion, indexing, and evaluation experiments.
 
-## Data and limitations
+### Acknowledgements
 
-State that the project uses synthetic patient data and is a demonstration, not a clinical decision-support tool.
-
-## Tech stack
-
-Python, Streamlit, OpenAI API, Chroma/your vector store, Pandas, SQLite, uv.
-
-## License
+- `clinical_synopsis/embedder.py` is adapted from DataTalksClub's llm-zoomcamp: https://github.com/DataTalksClub/llm-zoomcamp/blob/main/02-vector-search/embed/embedder.py.  
+  Please see the upstream repository for the original implementation and licensing.
 
 
+## How to run
 
+### Tech stack
 
-# CONTAINERIZATION 
-(2)
-## Run with Docker
+Python, Streamlit, OpenAI API, ONNX / Xenova, MinSearch, Pandas, SQLite, uv, Docker / Docker Compose
+
+### Prerequisites
+
+- git
+- docker runtime
+- An OpenAI API key
+- [git-lfs](https://git-lfs.com/)
 
 The Docker image includes the Streamlit application, locked Python
 dependencies, embedding-model files, retrieval artifacts in
 `data/retrieval/`, and source documents in `data/derived/`.
 
-### Prerequisites
+Pull the code with:
 
-- Docker Desktop
-- An OpenAI API key
-- [git-lfs](https://git-lfs.com/)
+`git clone https://github.com/btomaszewicz/llm-zoomcamp-capstone-project.git`
 
-### Build
 
+### Build and Run
 From the repository root:
 
 ```bash
-docker build -t clinical-synopsis:local .
+docker compose up --rebuild
 ```
 
-### Run
+or without docker compose, 
 
 ```bash
+docker build -t clinical-synopsis:local .
 docker run --rm \
   -p 8501:8501 \
   -e OPENAI_API_KEY \
   clinical-synopsis:local
 ```
 
-Open http://localhost:8501 in a browser.
+The app is then accessible at http://localhost:8501 in your browser.
 
-The API key is supplied at runtime and is not stored in the Docker image or
-repository.
-
-(1)
-
-## Reproducibility
-
-This repository contains a Streamlit-based retrieval-augmented generation
-application for producing clinician-facing patient synopses from structured
-and text-based patient records.
-
-You'll need to set `OPENAI_API_KEY` with a valid OpenAPI Key in your environment 
-for the project to run. Set it with:
-
-```bash
-export OPENAI_API_KEY=<your API key>
-```
-
-### Software environment
+## Development
 
 The project uses Python and `uv` for dependency management. The committed
 `pyproject.toml` specifies the project dependencies, while `uv.lock` records
 the exact resolved versions used to create the environment.
 
-To reproduce the local environment:
+To setup the local environment, first copy the `.env.example` into `.env`:
+```bash
+cp .env.example .env
+```
+then set the OPENAI_API_KEY in the `.env` file. 
 
+To install the packages and run the development server:
 ```bash
 uv sync --locked
 uv run streamlit run clinical_synopsis/app.py
 ```
-
-### Containerized execution
-
-If you have docker-compose, run:
-
-```bash
-docker compose up
-```
-
-
-A Dockerfile is provided to run the application in an isolated environment.
-Build the image from the repository root:
-
-```bash
-docker build -t clinical-synopsis:local .
-```
-
-The retrieval index is intentionally supplied at runtime rather than embedded
-in the image. This separates versioned application code from generated
-retrieval artifacts and prevents clinical data from being added to the image.
-
-Run the application with a local retrieval directory mounted read-only:
-
-```bash
-docker run --rm -it \
-  -p 8501:8501 \
-  -e OPENAI_API_KEY \
-  -e CLINICAL_SYNOPSIS_RETRIEVAL_OUTPUT_DIR=/data/retrieval \
-  -e CLINICAL_SYNOPSIS_METADATA_DB=/data/retrieval/metadata.db \
-  -v "$(pwd)/data/retrieval_test:/data/retrieval:ro" \
-  clinical-synopsis:local
-```
-
-### Data and retrieval artifacts
-
-The repository does not include API credentials or restricted patient data.
-To reproduce an evaluation run, create or obtain the permitted test data,
-then run the documented ingestion scripts to generate:
-
-- `metadata.db`
-- `minsearch_index.pkl`
-- `minsearch_documents.json`
-- `vector_index.npz`
-- `vector_index_metadata.json`
-
-The ingestion notebook uses environment-variable path overrides to create
-these files in an isolated test retrieval directory without modifying the
-default application artifacts.
-
-### Limitations
-
-Outputs depend on the configured language model and its version. API-based
-generation therefore cannot be guaranteed to be bit-for-bit identical across
-time. The repository preserves the code, prompts, dependency lockfile,
-retrieval artifacts, evaluation questions, and generation settings needed to
-reproduce the evaluation procedure as closely as possible.
