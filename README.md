@@ -119,14 +119,47 @@ Question type
 
 Exact `uv` commands to install and run the app.
 
-## Evaluation
+## Retrieval and LLM evaluation
 
-Explain:
-- Gold chunk sets for retrieval evaluation
-- Retrieval metrics
-- Routed versus generic baseline
-- LLM judge for relevance and groundedness
-- Limits of automated judging
+The evaluation notebook in
+[`04_evaluate_retrieval_prompt_routing.ipynb`](notebooks/04_evaluate_retrieval_prompt_routing.ipynb).
+shows that my first version of the RAG pipeline, let's call it the Baseline, had a major problem with the basic prompting instructions. The issue was not the retrieval engine itself, but how the model was prompted once it received the retrieved context. Brief summary of the findings:
+
+### 1. Retrieval was not the problem
+I created a ground-truth set of 9 patients across low, medium, and high complexity, and defined gold chunks for four question types:
+- patient overview
+- conditions
+- medications
+- oncology timeline
+
+For each question type, I evaluated lexical, semantic, and hybrid search using Hit@5 and MRR@5. The key takeaway was that retrieval was mostly able to surface relevant chunks. The model did not fail because it could not find the right evidence; it failed because once that evidence was passed into a generic prompt, the model often summarized too broadly or interpreted the data incorrectly.
+
+### 2. Boost tuning had little effect
+I tested several title/heading/chunk-text weighting configurations. Changing lexical boosts did not meaningfully improve retrieval quality. 
+
+### 3. The answers were often relevant but not faithful or grounded
+The notebook uses LLM-as-judge evaluation in two ways:
+- relevance/groundedness against the retrieved context
+- relevance/faithfulness/coverage against a reference summary
+
+The reference-based judge claims that the answers are not just missing some gold conditions (which we expect because the reference is richer than the context), they’re also inventing conditions that are not in the data and misinterpreting the status (treating resolved as active, or vice versa).
+
+Manually inspecting the high complexity patients I see that both the answers and the reference-based judge are wrong, because they have trouble putting together the information in the chunks from patient_overview.md and conditions.csv.
+
+This is because patient_overview.md contains top 10 diagnostic reports, as an approximation for "recent results", which for complex patients with lots of records is an incomplete source for the summary. Reaching directly to the full record, conditions.csv, the two LLMs selects the most serious diagnoses from the life-time record and then are not able to infer which are the recent and/or active diagnoses.
+
+
+### Why I ended up routing questions
+I concluded that the poor accuracy of the answers is due to poor generation not retrieval. With a complex source (Recent Conditions heading in patient_overview.md + conditions.csv), the answer quality depends heavily on the **prompt and context**, not just retrieval.
+
+The final approach is to:
+1. detect the likely question type
+2. select question-specific retrieval filters and document types
+3. apply task-specific instructions in the prompt
+
+This produces more reliable behavior because the model is told not to just “answer the question,” but to “answer this kind of clinical question in this particular way.”
+
+Bottom line: the evidence showed that prompt and context selection mattered more than ranking tweaks, and routing was the cleanest way to make the app more accurate across the four supported clinical tasks.
 
 ## Repository structure
 
@@ -142,3 +175,47 @@ Python, Streamlit, OpenAI API, Chroma/your vector store, Pandas, SQLite, uv.
 
 ## License
 
+
+
+
+# EVALUATION NOTEBOOK: Retrieval and LLM evaluation
+
+The evaluation notebook in
+[`04_evaluate_retrieval_prompt_routing.ipynb`](notebooks/04_evaluate_retrieval_prompt_routing.ipynb).
+shows that my first version of the RAG pipeline, let's call it the Baseline, had a major problem with the basic prompting instructions. The issue was not the retrieval engine itself, but how the model was prompted once it received the retrieved context. Brief summary of the findings:
+
+### 1. Retrieval was not the problem
+I created a ground-truth set of 9 patients across low, medium, and high complexity, and defined gold chunks for four question types:
+- patient overview
+- conditions
+- medications
+- oncology timeline
+
+For each question type, I evaluated lexical, semantic, and hybrid search using Hit@5 and MRR@5. The key takeaway was that retrieval was mostly able to surface relevant chunks. The model did not fail because it could not find the right evidence; it failed because once that evidence was passed into a generic prompt, the model often summarized too broadly or interpreted the data incorrectly.
+
+### 2. Boost tuning had little effect
+I tested several title/heading/chunk-text weighting configurations. Changing lexical boosts did not meaningfully improve retrieval quality. 
+
+### 3. The answers were often relevant but not faithful or grounded
+The notebook uses LLM-as-judge evaluation in two ways:
+- relevance/groundedness against the retrieved context
+- relevance/faithfulness/coverage against a reference summary
+
+The reference-based judge claims that the answers are not just missing some gold conditions (which we expect because the reference is richer than the context), they’re also inventing conditions that are not in the data and misinterpreting the status (treating resolved as active, or vice versa).
+
+Manually inspecting the high complexity patients I see that both the answers and the reference-based judge are wrong, because they have trouble putting together the information in the chunks from patient_overview.md and conditions.csv.
+
+This is because patient_overview.md contains top 10 diagnostic reports, as an approximation for "recent results", which for complex patients with lots of records is an incomplete source for the summary. Reaching directly to the full record, conditions.csv, the two LLMs selects the most serious diagnoses from the life-time record and then are not able to infer which are the recent and/or active diagnoses.
+
+
+### Why I ended up routing questions
+I concluded that the poor accuracy of the answers is due to poor generation not retrieval. With a complex source (Recent Conditions heading in patient_overview.md + conditions.csv), the answer quality depends heavily on the **prompt and context**, not just retrieval.
+
+The final approach is to:
+1. detect the likely question type
+2. select question-specific retrieval filters and document types
+3. apply task-specific instructions in the prompt
+
+This produces more reliable behavior because the model is told not to just “answer the question,” but to “answer this kind of clinical question in this particular way.”
+
+Bottom line: the evidence showed that prompt and context selection mattered more than ranking tweaks, and routing was the cleanest way to make the app more accurate across the four supported clinical tasks.
