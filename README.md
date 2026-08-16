@@ -1,13 +1,8 @@
-# NOTES
-
-add
+# ADD
 
 Something like "Evaluation criteria and rubric evidence: This table maps the course rubric directly to repository evidence so reviewers do not need to infer where each requirement is implemented."
 
 
-
-
-# SUGGESTED OUTLINE
 
 # Clinical Synopsis
 
@@ -17,6 +12,13 @@ Users can ask questions in natural language, review source-grounded responses, a
 
 This project uses synthetic data and is a technical demonstration only. It is not intended for clinical decision-making.
 
+## Live demo
+
+Try the deployed application here: **[Clinical Synopsis App](https://llm-zoomcamp-capstone-project.streamlit.app/)**
+
+## Demo video
+
+[![Watch the demo video](thumbnail.png)](output.mp4)
 
 
 ## Problem
@@ -43,10 +45,6 @@ The application then:
 The project evaluates both retrieval and generation. Retrieval is evaluated against manually defined ground truth. The generated answers are evaluated by reference-based LLM judge for relevance and source-grounding. 
 
 Human review remains necessary because automated evaluation alone cannot establish clinical correctness. The Monitoring page compares clinician feedback with the LLM judge’s relevance and groundedness assessments to identify agreement and disagreement between the two.
-
-## Demo
-
-Screenshot or short GIF of the Streamlit application.
 
 
 ## Data and knowledge base
@@ -226,6 +224,7 @@ dependencies, embedding-model files, retrieval artifacts in
 
 - Docker Desktop
 - An OpenAI API key
+- [git-lfs](https://git-lfs.com/)
 
 ### Build
 
