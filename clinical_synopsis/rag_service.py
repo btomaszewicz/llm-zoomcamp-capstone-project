@@ -382,13 +382,29 @@ def evaluate_relevance(question, answer, context, search_type, model="gpt-5.4-mi
         evaluation = json.loads(evaluation_text)
     except json.JSONDecodeError:
         evaluation = {
-            "Relevance": "UNKNOWN",
-            "Groundedness": "UNKNOWN",
-            "Explanation": "Failed to parse evaluation",
+            "relevance_score": None,
+            "groundedness_score": None,
+            "overall_score": None,
+            "relevance_label": "UNKNOWN",
+            "groundedness_label": "UNKNOWN",
+            "explanation": "Failed to parse evaluation JSON.",
         }
 
+    relevance_score = evaluation.get("relevance_score")
+    groundedness_score = evaluation.get("groundedness_score")
+
+    if relevance_score is not None and groundedness_score is not None:
+        overall_score = (float(relevance_score) + float(groundedness_score)) / 2
+    else:
+        overall_score = None
+
     return {
-        "evaluation": evaluation,
+        "relevance_score": relevance_score,
+        "groundedness_score": groundedness_score,
+        "overall_score": overall_score,
+        "relevance_label": evaluation.get("relevance_label", "UNKNOWN"),
+        "groundedness_label": evaluation.get("groundedness_label", "UNKNOWN"),
+        "explanation": evaluation.get("explanation", "No explanation returned."),
         "token_stats": token_stats,
         "cost": cost_info,
         "raw_text": evaluation_text,
@@ -515,6 +531,7 @@ ONCOLOGY TIMELINE CONTEXT:
         "patient_age_years": patient_age,
         "patient_gender": patient_gender,
         "answer": answer,
+        "context": context,
         **token_stats,
         **cost_info,
     }

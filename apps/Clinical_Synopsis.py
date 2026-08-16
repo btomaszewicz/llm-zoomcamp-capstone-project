@@ -13,7 +13,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from clinical_synopsis.question_router import route_question
-from clinical_synopsis.rag_service import get_patient_catalog, rag_new
+from clinical_synopsis.rag_service import get_patient_catalog, rag_new, evaluate_relevance
 from clinical_synopsis.feedback import save_feedback
 
 
@@ -216,6 +216,14 @@ if ask:
                 search_type=search_type,
                 model=model,
             )
+
+            judge_result = evaluate_relevance(
+                question=question.strip(),
+                answer=result["answer"],
+                context=result["context"],
+                search_type=search_type,
+                model=model,
+            )
             
             latency_seconds = time.perf_counter() - started_at
     except Exception as exc:
@@ -242,6 +250,15 @@ if ask:
         "output_tokens": result.get("output_tokens"),
         "total_cost": result.get("total_cost"),
         "latency_seconds": latency_seconds,
+        "judge_relevance_score": judge_result["relevance_score"],
+        "judge_groundedness_score": judge_result["groundedness_score"],
+        "judge_overall_score": judge_result["overall_score"],
+        "judge_relevance_label": judge_result["relevance_label"],
+        "judge_groundedness_label": judge_result["groundedness_label"],
+        "judge_explanation": judge_result["explanation"],
+        "judge_input_tokens": judge_result["token_stats"]["input_tokens"],
+        "judge_output_tokens": judge_result["token_stats"]["output_tokens"],
+        "judge_total_cost": judge_result["cost"]["total_cost"],
     }
 
     # Do not show a “feedback saved” message for a newly generated answer.
@@ -350,6 +367,15 @@ if response is not None:
             "output_tokens": response["output_tokens"],
             "total_cost": response["total_cost"],
             "latency_seconds": response["latency_seconds"],
+            "judge_relevance_score": response["judge_relevance_score"],
+            "judge_groundedness_score": response["judge_groundedness_score"],
+            "judge_overall_score": response["judge_overall_score"],
+            "judge_relevance_label": response["judge_relevance_label"],
+            "judge_groundedness_label": response["judge_groundedness_label"],
+            "judge_explanation": response["judge_explanation"],
+            "judge_input_tokens": response["judge_input_tokens"],
+            "judge_output_tokens": response["judge_output_tokens"],
+            "judge_total_cost": response["judge_total_cost"],
         }
 
         try:

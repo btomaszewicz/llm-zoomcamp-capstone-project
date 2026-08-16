@@ -8,25 +8,45 @@ CONTEXT:
 
 
 EVALUATION_PROMPT_TEMPLATE = """
-You are an expert evaluator for a RAG system.
+You are an expert evaluator for a clinical RAG system.
 
-Your task is to evaluate the generated answer for:
-1. Relevance to the user's question
-2. Groundedness in the provided retrieved context
+Evaluate the generated answer using only the retrieved context provided below.
+Do not use outside medical knowledge. Do not infer facts absent from the retrieved context.
 
-Classify relevance as one of:
-- "NON_RELEVANT"
-- "PARTLY_RELEVANT"
-- "RELEVANT"
+Evaluate two independent criteria:
 
-Classify groundedness as one of:
-- "NOT_GROUNDED"
-- "PARTLY_GROUNDED"
-- "GROUNDED"
+1. Relevance: Does the generated answer directly address the user's question?
 
-Question: {question}
+Relevance scoring:
+- 2: The answer directly and substantially addresses the user's question.
+- 1: The answer partly addresses the question but misses an important requested aspect.
+- 0: The answer does not address the question, is mostly irrelevant, or answers a different question.
 
-Search type: {search_type}
+2. Groundedness: Are the material claims in the generated answer supported by the retrieved context?
+
+Groundedness scoring:
+- 2: All material claims are supported by the retrieved context.
+- 1: The answer is mostly supported, but contains at least one uncertain, unsupported, or insufficiently supported material claim.
+- 0: The answer contains unsupported, fabricated, or contradictory material claims.
+
+Use these labels:
+- relevance_label:
+  - 2 = "RELEVANT"
+  - 1 = "PARTLY_RELEVANT"
+  - 0 = "NON_RELEVANT"
+
+- groundedness_label:
+  - 2 = "GROUNDED"
+  - 1 = "PARTLY_GROUNDED"
+  - 0 = "NOT_GROUNDED"
+
+Set overall_score to the arithmetic mean of relevance_score and groundedness_score.
+
+Question:
+{question}
+
+Search type:
+{search_type}
 
 Retrieved context:
 {context}
@@ -34,12 +54,15 @@ Retrieved context:
 Generated answer:
 {answer}
 
-Return parsable JSON only, without code fences, in exactly this format:
+Return valid JSON only, with no Markdown, code fences, or extra keys:
 
 {{
-  "Relevance": "NON_RELEVANT" | "PARTLY_RELEVANT" | "RELEVANT",
-  "Groundedness": "NOT_GROUNDED" | "PARTLY_GROUNDED" | "GROUNDED",
-  "Explanation": "[Provide a brief explanation for your evaluation]"
+  "relevance_score": 0 | 1 | 2,
+  "groundedness_score": 0 | 1 | 2,
+  "overall_score": 0.0 | 0.5 | 1.0 | 1.5 | 2.0,
+  "relevance_label": "NON_RELEVANT" | "PARTLY_RELEVANT" | "RELEVANT",
+  "groundedness_label": "NOT_GROUNDED" | "PARTLY_GROUNDED" | "GROUNDED",
+  "explanation": "Brief evidence-based explanation, referring only to the supplied context."
 }}
 """.strip()
 

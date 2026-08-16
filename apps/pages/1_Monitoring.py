@@ -43,6 +43,15 @@ EXPECTED_COLUMNS = [
     "output_tokens",
     "total_cost",
     "latency_seconds",
+    "judge_relevance_score",
+    "judge_groundedness_score",
+    "judge_overall_score",
+    "judge_relevance_label",
+    "judge_groundedness_label",
+    "judge_explanation",
+    "judge_input_tokens",
+    "judge_output_tokens",
+    "judge_total_cost",
 ]
 
 
@@ -92,6 +101,19 @@ def load_feedback(db_path: str) -> pd.DataFrame:
         feedback["latency_seconds"], errors="coerce")
     feedback["accuracy_issue"] = pd.to_numeric(
         feedback["accuracy_issue"], errors="coerce").fillna(0).astype(int)
+
+    for column in [
+        "judge_relevance_score",
+        "judge_groundedness_score",
+        "judge_overall_score",
+        "judge_input_tokens",
+        "judge_output_tokens",
+        "judge_total_cost",
+    ]:
+        feedback[column] = pd.to_numeric(
+            feedback[column],
+            errors="coerce",
+        )
 
     return feedback[EXPECTED_COLUMNS]
 
@@ -262,6 +284,11 @@ accuracy_flag_rate = (
 )
 total_cost = filtered["total_cost"].sum(min_count=1)
 
+filtered["combined_cost"] = (
+    filtered["total_cost"].fillna(0)
+    + filtered["judge_total_cost"].fillna(0)
+)
+
 st.subheader("Quality summary")
 metric_columns = st.columns(4)
 metric_columns[0].metric("Feedback records", f"{len(filtered):,}")
@@ -325,6 +352,11 @@ usage_columns[2].metric(
 usage_columns[3].metric(
     "Total estimated cost",
     f"${filtered['total_cost'].fillna(0).sum():.4f}",
+)
+
+st.metric(
+    "Generation + judge cost",
+    f"${filtered['combined_cost'].sum():.4f}",
 )
 
 chart_left, chart_right = st.columns(2)
@@ -436,6 +468,179 @@ st.download_button(
     file_name="clinical_synopsis_feedback.csv",
     mime="text/csv",
 )
+
+st.divider()
+st.subheader("Automated evaluation")
+st.caption(
+    "LLM-as-a-judge results for clinician-reviewed answers. "
+    "Use clinician feedback as the primary quality signal."
+)
+
+judged = filtered.dropna(subset=["judge_overall_score"]).copy()
+
+if judged.empty:
+    st.info(
+        "No judge results have been saved yet. "
+        "They will appear after new evaluated answers receive feedback."
+    )
+else:
+    evaluation_metrics = st.columns(4)
+
+    evaluation_metrics[0].metric(
+        "Judged answers",
+        f"{len(judged):,}",
+    )
+
+    evaluation_metrics[1].metric(
+        "Average overall score",
+        f"{judged['judge_overall_score'].mean():.2f} / 2",
+    )
+
+    evaluation_metrics[2].metric(
+        "Average relevance",
+        f"{judged['judge_relevance_score'].mean():.2f} / 2",
+    )
+
+    evaluation_metrics[3].metric(
+        "Average groundedness",
+        f"{judged['judge_groundedness_score'].mean():.2f} / 2",
+    )
+
+    judge_chart_left, judge_chart_right = st.columns(2)
+
+    with judge_chart_left:
+        st.markdown("#### Judge-score distribution")
+
+        score_distribution = (
+            judged["judge_overall_score"]
+            .value_counts()
+            .sort_index()
+            .rename_axis("overall_score")
+            .to_frame("answers")
+        )
+
+        st.bar_chart(score_distribution)
+
+    with judge_chart_right:
+        st.markdown("#### Groundedness outcomes")
+
+        groundedness_distribution = (
+            judged["judge_groundedness_label"]
+            .fillna("UNKNOWN")
+            .value_counts()
+            .to_frame("answers")
+        )
+
+        st.bar_chart(groundedness_distribution)
+
+
+comparison = judged.dropna(
+    subset=["feedback_score", "judge_overall_score"]
+).copy()
+
+comparison["clinician_normalized"] = (
+    comparison["feedback_score"] - 1
+) / 4
+
+comparison["judge_normalized"] = (
+    comparison["judge_overall_score"] / 2
+)
+
+if comparison.empty:
+    st.caption(
+        "A comparison will appear once answers have both clinician feedback "
+        "and a stored judge score."
+    )
+else:
+    st.markdown("#### Judge versus clinician feedback")
+
+    mean_absolute_gap = (
+        comparison["clinician_normalized"]
+        - comparison["judge_normalized"]
+    ).abs().mean()
+
+    agreement_rate = (
+        (
+            (comparison["clinician_normalized"] >= 0.75)
+            == (comparison["judge_normalized"] >= 0.75)
+        )
+        .mean()
+        * 100
+    )
+
+    compare_metrics = st.columns(3)
+
+    compare_metrics[0].metric(
+        "Comparable answers",
+        f"{len(comparison):,}",
+    )
+
+    compare_metrics[1].metric(
+        "Mean score gap",
+        f"{mean_absolute_gap:.2f}",
+        help="0 means perfect agreement after both scores are normalized to 0–1.",
+    )
+
+    compare_metrics[2].metric(
+        "High/low agreement",
+        f"{agreement_rate:.0f}%",
+        help=(
+            "Agreement on whether both the clinician and judge consider "
+            "the answer high quality."
+        ),
+    )
+
+
+    st.markdown("#### Disagreement cases")
+
+    disagreement_cases = comparison.assign(
+        score_gap=(
+            comparison["clinician_normalized"]
+            - comparison["judge_normalized"]
+        ).abs()
+    ).sort_values("score_gap", ascending=False)
+
+    st.dataframe(
+        disagreement_cases[
+            [
+                "id",
+                "created_at",
+                "patient_id",
+                "question_type",
+                "feedback_score",
+                "judge_overall_score",
+                "judge_relevance_label",
+                "judge_groundedness_label",
+                "score_gap",
+                "question",
+                "judge_explanation",
+                "comment",
+            ]
+        ].head(20),
+        hide_index=True,
+        use_container_width=True,
+        column_config={
+            "score_gap": st.column_config.NumberColumn(
+                "Normalized gap",
+                format="%.2f",
+            ),
+            "question": st.column_config.TextColumn(
+                "Question",
+                width="large",
+            ),
+            "judge_explanation": st.column_config.TextColumn(
+                "Judge explanation",
+                width="large",
+            ),
+            "comment": st.column_config.TextColumn(
+                "Clinician comment",
+                width="large",
+            ),
+        },
+    )
+
+
+
 
 st.divider()
 st.subheader("Inspect an answer")
