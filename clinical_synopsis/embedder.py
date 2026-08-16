@@ -14,13 +14,6 @@ class Embedder:
         self.session = ort.InferenceSession(
             str(path / "model.onnx"), providers=["CPUExecutionProvider"]
         )
-# class Embedder:
-#     def __init__(self, path="models/Xenova/all-MiniLM-L6-v2"):
-#         path = Path(path)
-#         self.tokenizer = Tokenizer.from_file(str(path / "tokenizer.json"))
-#         self.session = ort.InferenceSession(
-#             str(path / "model.onnx"), providers=["CPUExecutionProvider"]
-#         )
         self.input_names = {inp.name for inp in self.session.get_inputs()}
 
     def encode(self, text, normalize=True):

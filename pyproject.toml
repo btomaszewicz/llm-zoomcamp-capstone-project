@@ -21,5 +21,6 @@ dependencies = [
 [dependency-groups]
 dev = [
     "huggingface-hub>=1.24.0",
-    "jupyter>=1.1.1"
+    "jupyter>=1.1.1",
+    "ruff>=0.16.3",
 ]

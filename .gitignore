@@ -13,7 +13,6 @@ wheels/
 
 # Models
 
-models/
 data/
 
 .DS_Store
