@@ -18,7 +18,7 @@ Try the deployed application here: **[Clinical Synopsis App](https://llm-zoomcam
 
 ## Demo video
 
-[![Watch the demo video](thumbnail.png)](output.mp4)
+![Watch the demo video](output.gif)
 
 
 ## Problem
