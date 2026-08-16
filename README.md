@@ -69,6 +69,12 @@ The project uses a selected sample of 50 synthetic breast-cancer patient records
 
 The derived records are split into chunks and stored with metadata including patient ID, document type, section heading, date range, and oncology flag. The same chunk metadata supports both a MinSearch lexical index and a local sentence-transformer vector index for semantic retrieval.
 
+The data preparation pipeline is documented in
+[`01_prepare_derived_patient_records.ipynb`](notebooks/01_prepare_derived_patient_records.ipynb).
+
+The semi-automated knowledge-base ingestion workflow is documented in
+[`02_build_knowledge_base.ipynb`](notebooks/02_build_knowledge_base.ipynb).
+
 
 
 ### MY INTERFACE FLOW / Summary of the demo
