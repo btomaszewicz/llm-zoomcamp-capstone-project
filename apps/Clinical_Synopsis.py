@@ -124,7 +124,7 @@ if "feedback_message" not in st.session_state:
     st.session_state.feedback_message = None
 
 st.title("Clinical Synopsis")
-st.caption("Source-Grounded Patient Summaries. Verify the answer against the patient's Electronic Health Record.")
+st.caption("Generate clinical summaries with supporting evidence from available patient records.")
 
 if not os.environ.get("OPENAI_API_KEY"):
     st.error("OPENAI_API_KEY is not configured for this Streamlit process.")
