@@ -1,9 +1,3 @@
-# ADD
-
-Something like "Evaluation criteria and rubric evidence: This table maps the course rubric directly to repository evidence so reviewers do not need to infer where each requirement is implemented."
-
-
-
 # Clinical Synopsis
 
 Clinical Synopsis is a RAG application that transforms structured synthetic patient records—such as tables and spreadsheets of conditions, medications, procedures, diagnostic reports, and oncology events—into plain-language clinical summaries and answers.
@@ -20,6 +14,25 @@ Try the deployed application here: **[Clinical Synopsis App](https://llm-zoomcam
 
 ![Watch the demo video](output.gif)
 
+**Request flow**
+1. The user asks a question in the app.
+2. The router chooses a question type or asks for clarification.
+3. `rag_service` picks the corresponding prompt mode and retrieval scope from config.py.
+4. retrieval.py fetches relevant chunks from the lexical, semantic, or hybrid index.
+5. `build_context` formats those chunks into a prompt context.
+6. The LLM generates the answer.
+7. The judge evaluates grounding and relevance against the retrieved context.
+
+
+## Features
+
+- Synthetic patient selection
+- Hybrid, semantic, and lexical retrieval
+- Question routing
+- Source-record previews
+- Answer feedback collection
+- Monitoring dashboard
+- Retrieval and LLM-judge evaluation notebook
 
 ## Problem
 
@@ -63,39 +76,8 @@ The semi-automated knowledge-base ingestion workflow is documented in
 
 
 
-### MY INTERFACE FLOW / Summary of the demo
-Clinical Synopsis
-Generate clinical summaries with supporting evidence from available patient records.
-
-Ask a clinical question
-[ Text area ]
-
-Question type
-[ Router suggestion with optional override ]
-
-[ Generate synopsis ]
 
 
-
-**Request flow**
-1. The user asks a question in the app.
-2. The router chooses a question type or asks for clarification.
-3. `rag_service` picks the corresponding prompt mode and retrieval scope from config.py.
-4. retrieval.py fetches relevant chunks from the lexical, semantic, or hybrid index.
-5. `build_context` formats those chunks into a prompt context.
-6. The LLM generates the answer.
-7. The judge evaluates grounding and relevance against the retrieved context.
-
-
-## Features
-
-- Synthetic patient selection
-- Hybrid, semantic, and lexical retrieval
-- Question routing
-- Source-record previews
-- Answer feedback collection
-- Monitoring dashboard
-- Retrieval and LLM-judge evaluation notebook
 
 ## Architecture
 
